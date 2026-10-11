@@ -1,8 +1,9 @@
-// The agents table (U-02): sortable on every column, sub-agents nested under their parent (C-06).
+// The agents table (U-02): one row per agent, its other sessions and sub-agents nested under it
+// (C-06), sortable on every column. Story, task and prompt say what each agent is on.
 
-import type { AgentView } from '@agent-manager/shared';
-import { ActionIcon, Anchor, Box, Group, Text, Tooltip } from '@mantine/core';
-import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+import { unfinishedReason, type AgentView } from '@agent-manager/shared';
+import { ActionIcon, Anchor, Badge, Box, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { IconAlertTriangle, IconChevronDown, IconChevronRight, IconCircleCheck } from '@tabler/icons-react';
 import {
   createColumnHelper,
   getCoreRowModel,
@@ -17,12 +18,13 @@ import {
   type VisibilityState,
 } from '@tanstack/react-table';
 import { Link } from 'react-router';
-import { agentPath, isOldSetup, kindLabel, stateRank } from '../lib/labels';
+import type { AgentRow } from '../lib/agents';
+import { agentPath, isOldSetup, kindLabel, plural, stateRank } from '../lib/labels';
 import { OldSetupBadge, StateBadge } from './Badges';
 import { CopyIcon } from './Copy';
 import { RelativeTime } from './Time';
 
-const col = createColumnHelper<AgentView>();
+const col = createColumnHelper<AgentRow>();
 
 function Dash() {
   return (
@@ -32,10 +34,16 @@ function Dash() {
   );
 }
 
-function NameCell({ row }: { row: Row<AgentView> }) {
+/** Where a row leads: a grouped agent opens its lead session. */
+export function rowAgentId(agent: AgentRow): string {
+  return agent.group ? agent.group.lead.id : agent.id;
+}
+
+function NameCell({ row }: { row: Row<AgentRow> }) {
   const agent = row.original;
   const expanded = row.getIsExpanded();
   const name = agent.name || agent.id;
+  const sessions = agent.group?.instances.length ?? 0;
   return (
     <Group gap={6} wrap="nowrap" pl={row.depth * 22}>
       {row.getCanExpand() ? (
@@ -45,34 +53,93 @@ function NameCell({ row }: { row: Row<AgentView> }) {
           size="sm"
           onClick={row.getToggleExpandedHandler()}
           aria-expanded={expanded}
-          aria-label={`${expanded ? 'Hide' : 'Show'} sub-agents of ${name}`}
+          aria-label={`${expanded ? 'Hide' : 'Show'} ${sessions ? 'sessions' : 'sub-agents'} of ${name}`}
         >
           {expanded ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
         </ActionIcon>
       ) : (
         <Box w={22} style={{ flexShrink: 0 }} />
       )}
-      <Anchor component={Link} to={agentPath(agent.id)} size="sm" fw={500} style={{ whiteSpace: 'nowrap' }}>
+      <Anchor component={Link} to={agentPath(rowAgentId(agent))} size="sm" fw={500} style={{ whiteSpace: 'nowrap' }}>
         {name}
       </Anchor>
-      {row.getCanExpand() && !expanded && (
-        <Text span size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
-          +{row.subRows.length}
-        </Text>
+      {sessions > 0 ? (
+        <Tooltip label={`${plural(agent.group!.running, 'session')} running. Open the row to see each one.`}>
+          <Badge variant="default" size="sm" radius="sm" tt="none" style={{ flexShrink: 0 }}>
+            {plural(sessions, 'session')}
+          </Badge>
+        </Tooltip>
+      ) : (
+        row.getCanExpand() &&
+        !expanded && (
+          <Text span size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+            +{row.subRows.length}
+          </Text>
+        )
       )}
       {isOldSetup(agent) && <OldSetupBadge version={agent.instructionsVersion} />}
     </Group>
   );
 }
 
-function ActivityCell({ text }: { text: string | null }) {
-  if (!text) return <Dash />;
+/** Up to two lines of text, all of it in a tooltip. */
+function Clamp({ text, dimmed, prefix }: { text: string; dimmed?: boolean; prefix?: string }) {
   return (
-    <Tooltip label={text} multiline maw={480} openDelay={400}>
-      <Text size="sm" truncate="end" maw={360}>
+    <Tooltip label={text} multiline maw={480} openDelay={400} style={{ whiteSpace: 'pre-wrap' }}>
+      <Text size="sm" lineClamp={2} maw={300} c={dimmed ? 'dimmed' : undefined} style={{ overflowWrap: 'anywhere' }}>
+        {prefix}
         {text}
       </Text>
     </Tooltip>
+  );
+}
+
+function StateCell({ agent }: { agent: AgentView }) {
+  const unfinished = unfinishedReason(agent);
+  return (
+    <Group gap={4} wrap="nowrap">
+      <StateBadge state={agent.effectiveState} />
+      {unfinished && (
+        <Tooltip label={`Unfinished: ${unfinished}`}>
+          <IconAlertTriangle size={16} color="var(--mantine-color-orange-filled)" aria-label={`Unfinished: ${unfinished}`} />
+        </Tooltip>
+      )}
+    </Group>
+  );
+}
+
+/** The story, and under it the latest finished work when there is some. */
+function StoryCell({ agent }: { agent: AgentView }) {
+  const result = agent.result;
+  if (!agent.story && !result) return <Dash />;
+  return (
+    <Stack gap={2}>
+      {agent.story && <Clamp text={agent.story} />}
+      {result && (
+        <Group gap={4} wrap="nowrap" miw={0}>
+          <IconCircleCheck size={14} color="var(--mantine-color-teal-filled)" style={{ flexShrink: 0 }} aria-label="Finished" />
+          <Text size="xs" c="dimmed" truncate="end" maw={280}>
+            {result.title}
+          </Text>
+        </Group>
+      )}
+    </Stack>
+  );
+}
+
+/** The task, with the low-level activity under it (or in its place). */
+function TaskCell({ agent }: { agent: AgentView }) {
+  if (!agent.task && !agent.activity) return <Dash />;
+  if (!agent.task) return <Clamp text={agent.activity!} dimmed />;
+  return (
+    <Stack gap={2}>
+      <Clamp text={agent.task} />
+      {agent.activity && agent.activity !== agent.task && (
+        <Text size="xs" c="dimmed" truncate="end" maw={300}>
+          {agent.activity}
+        </Text>
+      )}
+    </Stack>
   );
 }
 
@@ -95,13 +162,25 @@ export const AGENT_COLUMNS = [
     id: 'state',
     header: 'State',
     sortDescFirst: false,
-    cell: ({ row }) => <StateBadge state={row.original.effectiveState} />,
+    cell: ({ row }) => <StateCell agent={row.original} />,
   }),
-  col.accessor((a) => a.activity ?? '', {
-    id: 'activity',
-    header: 'Activity',
+  col.accessor((a) => a.story ?? '', {
+    id: 'story',
+    header: 'Story',
     sortingFn: 'text',
-    cell: ({ row }) => <ActivityCell text={row.original.activity} />,
+    cell: ({ row }) => <StoryCell agent={row.original} />,
+  }),
+  col.accessor((a) => a.task ?? a.activity ?? '', {
+    id: 'task',
+    header: 'Task',
+    sortingFn: 'text',
+    cell: ({ row }) => <TaskCell agent={row.original} />,
+  }),
+  col.accessor((a) => a.prompt ?? '', {
+    id: 'prompt',
+    header: 'Prompt',
+    sortingFn: 'text',
+    cell: ({ row }) => (row.original.prompt ? <Clamp text={row.original.prompt} /> : <Dash />),
   }),
   col.accessor('runningChildren', {
     id: 'threads',
@@ -122,13 +201,13 @@ export const AGENT_COLUMNS = [
     id: 'copy',
     header: '',
     meta: { label: 'Copy id', width: 40 },
-    cell: ({ row }) => <CopyIcon value={row.original.id} label="Copy agent id" />,
+    cell: ({ row }) => <CopyIcon value={rowAgentId(row.original)} label="Copy agent id" />,
   }),
 ];
 
 interface AgentsTableOptions {
-  data: AgentView[];
-  /** Sub-agents of each agent, when rows nest. */
+  data: AgentRow[];
+  /** Sub-agents of each agent, when rows nest. A grouped row nests its sessions. */
   childrenOf?: ReadonlyMap<string, AgentView[]>;
   sorting: SortingState;
   onSortingChange: OnChangeFn<SortingState>;
@@ -145,7 +224,7 @@ export function useAgentsTable({
   expanded = {},
   onExpandedChange,
   columnVisibility = {},
-}: AgentsTableOptions): Table<AgentView> {
+}: AgentsTableOptions): Table<AgentRow> {
   return useReactTable({
     data,
     columns: AGENT_COLUMNS,
@@ -153,7 +232,7 @@ export function useAgentsTable({
     onSortingChange,
     onExpandedChange,
     getRowId: (a) => a.id,
-    getSubRows: childrenOf ? (a) => childrenOf.get(a.id) : undefined,
+    getSubRows: (a) => a.group?.instances ?? childrenOf?.get(a.id),
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),

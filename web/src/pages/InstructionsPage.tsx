@@ -1,5 +1,6 @@
 // U-07: the instructions agents read, rendered from the same raw file they fetch (I-01).
 
+import { INSTRUCTIONS_UPDATED, INSTRUCTIONS_VERSION } from '@agent-manager/shared';
 import { Anchor, Box, Button, Code, Group, Paper, Stack, Text, Typography } from '@mantine/core';
 import { IconDownload, IconFileText } from '@tabler/icons-react';
 import { createElement, type ReactNode } from 'react';
@@ -12,6 +13,7 @@ import { usePolling } from '../lib/usePolling';
 
 const INSTRUCTIONS_PATH = '/instructions.md';
 const AGENTCTL_PATH = '/agentctl.js';
+const UPDATE_PATH = '/update.md';
 
 async function loadInstructions(signal: AbortSignal): Promise<string> {
   let res: Response;
@@ -82,6 +84,7 @@ const components: Components = {
 export function InstructionsPage() {
   const { data, error, refresh } = usePolling('instructions', loadInstructions, { intervalMs: null });
   const sentence = `Read ${window.location.origin}${INSTRUCTIONS_PATH} and set yourself up to report to Agent Manager.`;
+  const updateSentence = `Read ${window.location.origin}${UPDATE_PATH} (updated ${INSTRUCTIONS_UPDATED}) and update this PC's Agent Manager reporting if it isn't on the latest.`;
 
   return (
     <>
@@ -112,6 +115,30 @@ export function InstructionsPage() {
             <CopyTextButton value={sentence} size="sm">
               Copy onboarding sentence
             </CopyTextButton>
+          </Group>
+        </Stack>
+      </Paper>
+
+      <Paper withBorder p="md" radius="md" mb="lg">
+        <Stack gap="xs">
+          <Group gap="xs" justify="space-between">
+            <Text size="sm">
+              To update a PC that's already set up (agents marked &ldquo;old setup&rdquo;), send its agent this sentence:
+            </Text>
+            <Anchor href={UPDATE_PATH} target="_blank" rel="noopener" size="sm">
+              Open update page
+            </Anchor>
+          </Group>
+          <Code block style={{ whiteSpace: 'pre-wrap' }}>
+            {updateSentence}
+          </Code>
+          <Group>
+            <CopyTextButton value={updateSentence} size="sm">
+              Copy update sentence
+            </CopyTextButton>
+            <Text size="xs" c="dimmed">
+              Latest: version {INSTRUCTIONS_VERSION}, {INSTRUCTIONS_UPDATED}
+            </Text>
           </Group>
         </Stack>
       </Paper>

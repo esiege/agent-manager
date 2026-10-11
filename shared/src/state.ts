@@ -1,4 +1,4 @@
-import { DEFAULT_LOST_AFTER_SECONDS, type Agent, type AgentState } from './contract';
+import { DEFAULT_LOST_AFTER_SECONDS, type Agent, type AgentState, type AgentTurn } from './contract';
 
 /** An agent's state as shown: what it last reported, or Lost once it has been silent too long. */
 export function effectiveState(agent: Pick<Agent, 'state' | 'lastSeen' | 'lostAfterSeconds'>, now: number): AgentState {
@@ -16,4 +16,21 @@ export function isRunning(state: AgentState): boolean {
 /** States that need the owner's attention (U-01). */
 export function needsAttention(state: AgentState): boolean {
   return state === 'waiting' || state === 'failed' || state === 'lost';
+}
+
+/**
+ * Why the agent's latest request didn't finish, or null when it finished or is still going.
+ * A request still running on a Lost agent was cut off: its PC or connection went away mid-way.
+ */
+export function unfinishedReason(agent: { turn?: AgentTurn | null; effectiveState: AgentState }): string | null {
+  const turn = agent.turn;
+  if (!turn) return null;
+  if (turn.outcome === 'running') {
+    if (agent.effectiveState === 'lost') return 'Connection lost mid-request';
+    if (agent.effectiveState === 'stopped') return 'Stopped mid-request';
+    return null;
+  }
+  if (turn.outcome === 'failed') return turn.reason || 'Failed mid-request';
+  if (turn.outcome === 'interrupted') return turn.reason || 'Interrupted';
+  return null;
 }

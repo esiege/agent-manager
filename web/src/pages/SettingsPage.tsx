@@ -5,6 +5,7 @@ import { Alert, Badge, Button, Group, Modal, Paper, Stack, Text, TextInput, Titl
 import { IconAlertTriangle, IconKey } from '@tabler/icons-react';
 import { createColumnHelper, getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table';
 import { useMemo, useState, type FormEvent } from 'react';
+import { AlertsSettings } from '../components/AlertsSettings';
 import { CopyField } from '../components/Copy';
 import { DataTable } from '../components/DataTable';
 import { PageHeader } from '../components/PageHeader';
@@ -250,6 +251,8 @@ export function SettingsPage() {
       ) : (
         <DataTable table={table} label="Machine keys" minWidth={560} />
       )}
+
+      <AlertsSettings />
 
       <SecretModal created={created} onClose={() => setCreated(null)} />
       <RevokeModal target={revoking} onClose={() => setRevoking(null)} onRevoked={refresh} />

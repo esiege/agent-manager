@@ -7,6 +7,7 @@ import type {
   LogsQueryResponse,
   ReportResponse,
 } from '@agent-manager/shared';
+import { unfinishedReason } from '@agent-manager/shared';
 import { resetAuthState } from '../src/auth';
 import { heartbeat, postLogs, report } from '../src/handlers/ingest';
 import { createKey, listKeys, revokeKey } from '../src/handlers/keys';
@@ -148,6 +149,71 @@ describe('reports', () => {
       project: 'musik',
       details: { model: 'opus', branch: 'main' },
     });
+  });
+
+  it('stores story, task and prompt, masking secrets', async () => {
+    const res = await send({ story: 'AM-7: Export', task: 'Writing the CSV', prompt: 'use token=abcdef123456 please', turn: 'start', at: '2026-10-10T12:00:00Z' });
+    expect((res.body as ReportResponse).stored).toMatchObject({
+      story: 'AM-7: Export',
+      task: 'Writing the CSV',
+      prompt: 'use token=[masked] please',
+      promptAt: '2026-10-10T12:00:00.000Z',
+      turn: { outcome: 'running', prompt: 'use token=[masked] please' },
+    });
+    await send({ task: 'Next step' });
+    expect(await ctx.store.getAgent('pc/claude/s1')).toMatchObject({ story: 'AM-7: Export', task: 'Next step' });
+  });
+
+  it('ends turns: finished, failed, cut off by a new prompt, or closed mid-request', async () => {
+    await send({ state: 'working', prompt: 'one', turn: 'start' });
+    await send({ state: 'idle', turn: 'end' });
+    expect((await ctx.store.getAgent('pc/claude/s1'))?.turn).toMatchObject({ outcome: 'finished', prompt: 'one' });
+
+    await send({ state: 'working', prompt: 'two', turn: 'start' });
+    await send({ state: 'working', prompt: 'three', turn: 'start' });
+    const events = await ctx.store.listEvents('pc/claude/s1', 20);
+    expect(events.find((e) => e.type === 'turn' && e.turn?.prompt === 'two')?.turn).toMatchObject({
+      outcome: 'interrupted',
+      reason: 'A new prompt came before it finished',
+    });
+
+    await send({ state: 'idle', activity: 'Waiting for your next prompt' });
+    expect((await ctx.store.getAgent('pc/claude/s1'))?.turn).toMatchObject({ outcome: 'interrupted', prompt: 'three', reason: 'Stopped before it finished' });
+
+    await send({ state: 'working', prompt: 'again', turn: 'start' });
+    await send({ state: 'failed', activity: 'Stopped by an API error (overloaded)' });
+    expect((await ctx.store.getAgent('pc/claude/s1'))?.turn).toMatchObject({ outcome: 'failed', reason: 'Stopped by an API error (overloaded)' });
+
+    await send({ state: 'working', prompt: 'four', turn: 'start' });
+    const hb = await call(heartbeat, 'POST', '/api/v1/heartbeat', { key, body: { machine: 'pc', kind: 'claude-code', agentIds: [] } });
+    expect(hb.status).toBe(200);
+    expect((await ctx.store.getAgent('pc/claude/s1'))?.turn).toMatchObject({ outcome: 'interrupted', reason: 'Closed mid-request' });
+  });
+
+  it('shows a request still running on a lost agent as cut off', async () => {
+    await send({ state: 'working', prompt: 'go', turn: 'start' });
+    tick(181);
+    const list = (await call(agents, 'GET', '/api/v1/agents', asOwner)).body as AgentsResponse;
+    expect(unfinishedReason(list.agents[0]!)).toBe('Connection lost mid-request');
+  });
+
+  it('stores a report of finished work with the prompt it answers', async () => {
+    await send({ state: 'working', prompt: 'Group the rows', turn: 'start' });
+    const res = await send({
+      state: 'idle',
+      turn: 'end',
+      result: { title: 'Group sessions', summary: '- One row per project', checks: ['Open Agents'], commitUrl: 'https://github.com/o/r/commit/abc', pushed: true },
+    });
+    expect(res.status).toBe(200);
+    expect((res.body as ReportResponse).stored.result).toMatchObject({
+      title: 'Group sessions',
+      prompt: 'Group the rows',
+      checks: ['Open Agents'],
+      commit: null,
+      pushed: true,
+    });
+    const bad = await send({ result: { title: 'x', summary: 'y', commitUrl: 'javascript:alert(1)' } });
+    expect(bad.status).toBe(400);
   });
 
   it('answers bad bodies with one line', async () => {

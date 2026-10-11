@@ -4,6 +4,9 @@ import {
   API_BASE,
   type AgentDetailResponse,
   type AgentsResponse,
+  type AlertsResponse,
+  type AlertSubscription,
+  type AlertSubscriptionInput,
   type ApiError,
   type CreateKeyResponse,
   type KeysResponse,
@@ -115,6 +118,11 @@ export const api = {
   keys: (signal?: AbortSignal) => request<KeysResponse>('/keys', { signal }),
   createKey: (name: string) => request<CreateKeyResponse>('/keys', { method: 'POST', body: { name } }),
   revokeKey: (id: string) => request<{ key: MachineKey }>('/keys/revoke', { method: 'POST', body: { id } }),
+  alerts: (signal?: AbortSignal) => request<AlertsResponse>('/alerts', { signal }),
+  saveAlert: (input: AlertSubscriptionInput) =>
+    request<{ subscription: AlertSubscription }>('/alerts', { method: 'POST', body: input }),
+  deleteAlert: (id: string) => request<{ ok: true }>('/alerts/delete', { method: 'POST', body: { id } }),
+  testAlert: (id: string) => request<{ subscription: AlertSubscription }>('/alerts/test', { method: 'POST', body: { id } }),
 };
 
 /** Who is signed in, from the site's built-in auth. Used to name a non-owner account. */

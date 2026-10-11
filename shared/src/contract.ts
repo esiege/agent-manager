@@ -4,7 +4,9 @@
 export const API_BASE = '/api/v1';
 
 /** Bump when Docs/instructions.md changes in a way agents must act on (I-05). */
-export const INSTRUCTIONS_VERSION = 1;
+export const INSTRUCTIONS_VERSION = 2;
+/** When the instructions and agentctl last changed. web/public/update.md shows the same date. */
+export const INSTRUCTIONS_UPDATED = '2026-10-11';
 
 export const AGENT_KINDS = ['claude-code', 'openclaw', 'service', 'other'] as const;
 export type AgentKind = (typeof AGENT_KINDS)[number];
@@ -13,6 +15,22 @@ export type AgentKind = (typeof AGENT_KINDS)[number];
 export const REPORTED_STATES = ['working', 'waiting', 'idle', 'stopped', 'failed'] as const;
 export type ReportedState = (typeof REPORTED_STATES)[number];
 export type AgentState = ReportedState | 'lost';
+
+/**
+ * A turn is one request: it starts with a prompt and ends when the agent finishes, fails, or is
+ * cut off. "interrupted" means it never finished: a new prompt came first, or the session closed.
+ * A turn still "running" on an agent that went Lost was cut off too; see unfinishedReason().
+ */
+export const TURN_OUTCOMES = ['running', 'finished', 'failed', 'interrupted'] as const;
+export type TurnOutcome = (typeof TURN_OUTCOMES)[number];
+
+/** What an alert subscription can be told about. "unfinished": interrupted, or lost mid-request. */
+export const ALERT_EVENTS = ['finished', 'waiting', 'failed', 'unfinished'] as const;
+export type AlertEvent = (typeof ALERT_EVENTS)[number];
+
+/** Where alerts go. ntfy (https://ntfy.sh) is free: the phone app shows them like texts. */
+export const ALERT_CHANNELS = ['ntfy'] as const;
+export type AlertChannel = (typeof ALERT_CHANNELS)[number];
 
 export const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
@@ -25,6 +43,13 @@ export const LIMITS = {
   idLength: 200,
   nameLength: 120,
   activityLength: 500,
+  storyLength: 300,
+  taskLength: 300,
+  promptLength: 2000,
+  resultTitleLength: 200,
+  resultSummaryLength: 8000,
+  resultChecks: 12,
+  resultCheckLength: 300,
   messageLength: 8000,
   linkLength: 2000,
 } as const;
@@ -46,6 +71,16 @@ export interface ReportInput {
   parentId?: string | null;
   state?: ReportedState;
   activity?: string | null;
+  /** The story or goal the agent is on: a ticket and its title when there is one, else a summary. */
+  story?: string | null;
+  /** The technical step it is on now. */
+  task?: string | null;
+  /** The person's latest prompt to it. */
+  prompt?: string | null;
+  /** "start" when a prompt starts a new request, "end" when the agent finishes it. */
+  turn?: 'start' | 'end';
+  /** The report of finished work (see WorkResult). */
+  result?: WorkResultInput;
   link?: string | null;
   details?: Record<string, unknown>;
   /** How long silence means Lost. Agents that heartbeat rarely raise it. */
@@ -82,7 +117,46 @@ export interface LogsInput {
   test?: boolean;
 }
 
+/** The report an agent gives when it finishes a piece of work. */
+export interface WorkResultInput {
+  /** A short name for the work: the commit's subject when it committed. */
+  title: string;
+  /** What was done, in Markdown. */
+  summary: string;
+  /** Acceptance steps: what the person should see now, one short line each. */
+  checks?: string[];
+  /** The prompt it answers. Defaults to the agent's current prompt. */
+  prompt?: string | null;
+  commit?: string | null;
+  /** A web link to the commit, such as https://github.com/<owner>/<repo>/commit/<sha>. */
+  commitUrl?: string | null;
+  branch?: string | null;
+  /** Whether the commit is on the remote yet; the link only works once it is. */
+  pushed?: boolean | null;
+}
+
 // ---- What the manager stores and returns ----
+
+export interface WorkResult {
+  title: string;
+  summary: string;
+  checks: string[];
+  prompt: string | null;
+  commit: string | null;
+  commitUrl: string | null;
+  branch: string | null;
+  pushed: boolean | null;
+  at: string;
+}
+
+export interface AgentTurn {
+  prompt: string | null;
+  startedAt: string;
+  endedAt: string | null;
+  outcome: TurnOutcome;
+  /** Why it didn't finish, in a few words. */
+  reason: string | null;
+}
 
 export interface Agent {
   id: string;
@@ -93,6 +167,15 @@ export interface Agent {
   parentId: string | null;
   state: ReportedState;
   activity: string | null;
+  story: string | null;
+  task: string | null;
+  prompt: string | null;
+  /** When the current prompt was sent. */
+  promptAt: string | null;
+  /** The latest request and how it ended. */
+  turn: AgentTurn | null;
+  /** The latest report of finished work. */
+  result: WorkResult | null;
   link: string | null;
   details: Record<string, unknown>;
   lostAfterSeconds: number;
@@ -103,6 +186,8 @@ export interface Agent {
   endedAt: string | null;
   /** Name of the machine key that last wrote this agent. */
   keyName: string;
+  /** The request (its turn.startedAt) a "connection lost" alert went out for, so it goes once. */
+  lostAlertFor?: string | null;
 }
 
 /** An agent as the UI sees it: with its derived state. */
@@ -111,7 +196,7 @@ export interface AgentView extends Agent {
   runningChildren: number;
 }
 
-export type AgentEventType = 'report' | 'state' | 'action';
+export type AgentEventType = 'report' | 'state' | 'action' | 'result' | 'turn';
 
 export interface AgentEvent {
   id: string;
@@ -121,6 +206,12 @@ export interface AgentEvent {
   receivedAt: string;
   state: ReportedState | null;
   activity: string | null;
+  story?: string | null;
+  task?: string | null;
+  prompt?: string | null;
+  result?: WorkResult | null;
+  /** On "turn" events: how the turn ended. */
+  turn?: AgentTurn | null;
   link: string | null;
   details: Record<string, unknown> | null;
 }
@@ -138,6 +229,38 @@ export interface LogEntry {
   keyName: string;
 }
 
+export interface AlertSubscription {
+  id: string;
+  /** Who or what it's for, such as "My phone". */
+  name: string;
+  channel: AlertChannel;
+  /** For ntfy: the topic's full URL, such as https://ntfy.sh/<a long random topic>. */
+  target: string;
+  events: AlertEvent[];
+  /** Only these projects; empty means all. */
+  projects: string[];
+  enabled: boolean;
+  createdAt: string;
+  lastSentAt: string | null;
+  /** The last delivery error, cleared by the next success. */
+  lastError: string | null;
+}
+
+/** POST /api/v1/alerts: create (no id) or update a subscription. */
+export interface AlertSubscriptionInput {
+  id?: string;
+  name: string;
+  channel: AlertChannel;
+  target: string;
+  events: AlertEvent[];
+  projects?: string[];
+  enabled?: boolean;
+}
+
+export interface AlertsResponse {
+  subscriptions: AlertSubscription[];
+}
+
 export interface MachineKey {
   id: string;
   name: string;
@@ -145,6 +268,7 @@ export interface MachineKey {
   lastUsedAt: string | null;
   revokedAt: string | null;
 }
+
 
 // ---- Responses ----
 

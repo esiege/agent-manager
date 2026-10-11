@@ -13,6 +13,7 @@ const CONTAINERS = {
   agents: { partitionKey: '/id' },
   keys: { partitionKey: '/id' },
   events: { partitionKey: '/agentId', defaultTtl: TTL_SECONDS },
+  alerts: { partitionKey: '/id' },
   logs: { partitionKey: '/source', defaultTtl: TTL_SECONDS },
 } as const;
 

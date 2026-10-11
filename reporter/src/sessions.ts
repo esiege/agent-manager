@@ -2,6 +2,7 @@
 //   sessions/<sessionId>/session.json       written at start and end (rare, so no write races)
 //   sessions/<sessionId>/sub-<agentId>.json one file per running sub-agent
 //   sessions/<sessionId>/send-<key>.json    coalescing state for one agent's activity reports
+//   sessions/<sessionId>/context.json       the story and task pinned by agentctl, and the current todo
 
 import { existsSync, readdirSync, rmSync, statSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
@@ -28,6 +29,20 @@ export interface SubagentRecord {
   startedAt: string;
 }
 
+/** What the session is on beyond what each hook event says (see context.ts). */
+export interface SessionContext {
+  /** Set by `agentctl story`; wins over the story worked out from the branch and title. */
+  story?: string;
+  /** Set by `agentctl task`; wins until the person's next prompt. */
+  task?: string;
+  /** The in-progress item of the agent's todo list, if it keeps one. */
+  todo?: string;
+  /** HEAD when the current request started. */
+  headAtPrompt?: string;
+  /** True once this request's finished work was reported. */
+  reported?: boolean;
+}
+
 export interface SendState {
   lastSentAt: number;
   /** Marks the newest activity report waiting for the coalescing window to close. */
@@ -40,6 +55,7 @@ const safe = (s: string) => s.replace(/[^A-Za-z0-9._-]/g, '_');
 const dirOf = (sessionId: string) => join(paths.sessions(), safe(sessionId));
 const sessionFile = (sessionId: string) => join(dirOf(sessionId), 'session.json');
 const subFile = (sessionId: string, subId: string) => join(dirOf(sessionId), `sub-${safe(subId)}.json`);
+const contextFile = (sessionId: string) => join(dirOf(sessionId), 'context.json');
 const sendFile = (sessionId: string, agentId: string) =>
   join(dirOf(sessionId), `send-${safe(agentId.split('/').pop() ?? 'main')}.json`);
 
@@ -77,6 +93,14 @@ export function listSubagents(sessionId: string): SubagentRecord[] {
     .filter((f) => f.startsWith('sub-'))
     .map((f) => readJsonFile<SubagentRecord>(join(dir, f)))
     .filter((s): s is SubagentRecord => s !== null);
+}
+
+export function readContext(sessionId: string): SessionContext {
+  return readJsonFile<SessionContext>(contextFile(sessionId)) ?? {};
+}
+
+export function writeContext(sessionId: string, context: SessionContext) {
+  writeJsonFile(contextFile(sessionId), context);
 }
 
 export function readSendState(sessionId: string, agentId: string): SendState {

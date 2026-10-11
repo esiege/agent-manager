@@ -6,6 +6,11 @@
       "headers": { "content-type": "text/markdown; charset=utf-8", "cache-control": "no-cache" }
     },
     {
+      "route": "/update.md",
+      "allowedRoles": ["anonymous"],
+      "headers": { "content-type": "text/markdown; charset=utf-8", "cache-control": "no-cache" }
+    },
+    {
       "route": "/agentctl.js",
       "allowedRoles": ["anonymous"],
       "headers": { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-cache" }
@@ -17,7 +22,7 @@
   ],
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/api/*", "/instructions.md", "/agentctl.js", "/assets/*", "/.auth/*", "/favicon.svg"]
+    "exclude": ["/api/*", "/instructions.md", "/update.md", "/agentctl.js", "/assets/*", "/.auth/*", "/favicon.svg"]
   },
   "responseOverrides": {
     "401": { "redirect": "/.auth/login/github?post_login_redirect_uri=.referrer", "statusCode": 302 }

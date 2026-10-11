@@ -21,7 +21,11 @@ export function LevelBadge({ level }: { level: LogLevel }) {
 /** I-05: set up from an older instructions page. */
 export function OldSetupBadge({ version }: { version: number | null }) {
   return (
-    <Tooltip label={`Set up from instructions v${version ?? '?'}. The current version is v${INSTRUCTIONS_VERSION}.`}>
+    <Tooltip
+      label={`Set up from instructions v${version ?? '?'}. The current version is v${INSTRUCTIONS_VERSION}: send its agent the update sentence from the Instructions tab.`}
+      multiline
+      maw={320}
+    >
       <Badge color="yellow" variant="outline" radius="sm" size="sm" tt="none" style={{ flexShrink: 0 }}>
         old setup
       </Badge>

@@ -11,16 +11,43 @@ import {
   validateReport,
   type Agent,
   type AgentEvent,
+  type AgentTurn,
+  type ReportInput,
+  type WorkResult,
   type HeartbeatResponse,
   type LogEntry,
   type LogsResponse,
   type ReportResponse,
 } from '@agent-manager/shared';
+import { notify, sweepLost } from '../alerts';
 import { requireKey } from '../auth';
 import { fail, ok, publicOrigin, readJson, type Handler } from '../http';
 
 // A heartbeat doesn't rewrite an agent that reported this recently; it's already fresh.
 const FRESH_MS = 20_000;
+
+/** The agent's turn after this report, and the turn it ended if it ended one. */
+export function nextTurn(
+  current: AgentTurn | null,
+  input: Pick<ReportInput, 'turn' | 'state' | 'activity'>,
+  prompt: string | null | undefined,
+  at: string,
+): { turn: AgentTurn | null; ended: AgentTurn | null } {
+  const end = (outcome: AgentTurn['outcome'], reason: string | null): AgentTurn => ({ ...current!, outcome, reason, endedAt: at });
+  const running = current?.outcome === 'running';
+  if (input.turn === 'start') {
+    const ended = running ? end('interrupted', 'A new prompt came before it finished') : null;
+    return { turn: { prompt: prompt ?? null, startedAt: at, endedAt: null, outcome: 'running', reason: null }, ended };
+  }
+  if (!running) return { turn: current, ended: null };
+  let ended: AgentTurn | null = null;
+  if (input.turn === 'end') ended = end('finished', null);
+  else if (input.state === 'failed') ended = end('failed', input.activity || 'Failed');
+  else if (input.state === 'stopped') ended = end('interrupted', `${input.activity || 'Stopped'} mid-request`);
+  // Idle without an end: the person pressed Esc, or the session restarted, before it finished.
+  else if (input.state === 'idle') ended = end('interrupted', 'Stopped before it finished');
+  return { turn: ended ?? current, ended };
+}
 
 export const report: Handler = async (req, ctx) => {
   const key = await requireKey(req, ctx);
@@ -37,6 +64,25 @@ export const report: Handler = async (req, ctx) => {
   const pick = <T>(incoming: T | undefined, current: T): T => (newer && incoming !== undefined ? incoming : current);
 
   const state = pick(input.state, existing?.state ?? 'working');
+  // Story, task and prompt can quote what the person typed: mask anything that looks like a secret.
+  const masked = (v: string | null | undefined) => (typeof v === 'string' ? maskSecrets(v) : v);
+  const story = masked(input.story);
+  const task = masked(input.task);
+  const prompt = masked(input.prompt);
+  const { turn, ended } = newer ? nextTurn(existing?.turn ?? null, input, prompt, at) : { turn: existing?.turn ?? null, ended: null };
+  const workResult: WorkResult | null = input.result
+    ? {
+        title: maskSecrets(input.result.title),
+        summary: maskSecrets(input.result.summary),
+        checks: (input.result.checks ?? []).map(maskSecrets),
+        prompt: masked(input.result.prompt) ?? turn?.prompt ?? existing?.prompt ?? null,
+        commit: input.result.commit ?? null,
+        commitUrl: input.result.commitUrl ?? null,
+        branch: input.result.branch ?? null,
+        pushed: input.result.pushed ?? null,
+        at,
+      }
+    : null;
   const agent: Agent = {
     id: input.agentId,
     kind: input.kind,
@@ -46,6 +92,14 @@ export const report: Handler = async (req, ctx) => {
     parentId: input.parentId !== undefined ? input.parentId : (existing?.parentId ?? null),
     state,
     activity: pick(input.activity, existing?.activity ?? null),
+    story: pick(story, existing?.story ?? null),
+    task: pick(task, existing?.task ?? null),
+    prompt: pick(prompt, existing?.prompt ?? null),
+    promptAt: pick(prompt === undefined ? undefined : prompt ? at : null, existing?.promptAt ?? null),
+    turn,
+    result: pick(workResult ?? undefined, existing?.result ?? null),
+    // Which request a "connection lost" alert went out for (alerts.ts), so it isn't sent twice.
+    lostAlertFor: existing?.lostAlertFor ?? null,
     link: pick(input.link, existing?.link ?? null),
     details: { ...existing?.details, ...input.details },
     lostAfterSeconds: input.lostAfterSeconds ?? existing?.lostAfterSeconds ?? DEFAULT_LOST_AFTER_SECONDS,
@@ -60,18 +114,25 @@ export const report: Handler = async (req, ctx) => {
   const event: AgentEvent = {
     id: randomUUID(),
     agentId: agent.id,
-    type: input.link ? 'action' : input.state && input.state !== existing?.state ? 'state' : 'report',
+    type: workResult ? 'result' : input.link ? 'action' : input.state && input.state !== existing?.state ? 'state' : 'report',
     at,
     receivedAt: now,
     state: input.state ?? null,
     activity: input.activity ?? null,
+    story: story ?? null,
+    task: task ?? null,
+    prompt: prompt ?? null,
+    result: workResult,
     link: input.link ?? null,
     details: input.details && Object.keys(input.details).length ? input.details : null,
   };
+  const events = [event];
+  if (ended) events.push(turnEvent(agent.id, ended, at, now));
 
   if (!input.test) {
     await ctx.store.putAgent(agent);
-    await ctx.store.addEvents([event]);
+    await ctx.store.addEvents(events);
+    await notify(ctx, existing, agent, publicOrigin(req, ctx.env));
   }
   const body: ReportResponse = {
     ok: true,
@@ -82,6 +143,22 @@ export const report: Handler = async (req, ctx) => {
   };
   return ok(body);
 };
+
+function turnEvent(agentId: string, turn: AgentTurn, at: string, receivedAt: string): AgentEvent {
+  const what = { finished: 'Finished the request', failed: 'Request failed', interrupted: 'Request cut off', running: 'Request started' }[turn.outcome];
+  return {
+    id: randomUUID(),
+    agentId,
+    type: 'turn',
+    at,
+    receivedAt,
+    state: null,
+    activity: turn.reason ? `${what}: ${turn.reason}` : what,
+    turn,
+    link: null,
+    details: null,
+  };
+}
 
 export const heartbeat: Handler = async (req, ctx) => {
   await requireKey(req, ctx);
@@ -107,8 +184,10 @@ export const heartbeat: Handler = async (req, ctx) => {
     } else if (agent.state !== 'stopped') {
       stopped.push(agent.id);
       const activity = `No longer running on ${input.machine}`;
+      const { turn, ended } = nextTurn(agent.turn ?? null, { state: 'stopped', activity: 'Closed' }, undefined, now);
+      if (ended) events.push(turnEvent(agent.id, ended, now, now));
       // lastReportAt moves too, so a late report from before the stop can't revive it.
-      writes.push({ ...agent, state: 'stopped', activity, endedAt: now, lastSeen: now, lastReportAt: now });
+      writes.push({ ...agent, state: 'stopped', activity, turn, endedAt: now, lastSeen: now, lastReportAt: now });
       events.push({
         id: randomUUID(),
         agentId: agent.id,
@@ -126,8 +205,11 @@ export const heartbeat: Handler = async (req, ctx) => {
   const unknown = input.agentIds.filter((id) => !knownIds.has(id));
 
   if (!input.test) {
+    const before = new Map(known.map((a) => [a.id, a]));
     for (const a of writes) await ctx.store.putAgent(a);
     if (events.length) await ctx.store.addEvents(events);
+    for (const a of writes) if (a.state === 'stopped') await notify(ctx, before.get(a.id) ?? null, a, publicOrigin(req, ctx.env));
+    await sweepLost(ctx, publicOrigin(req, ctx.env));
   }
   const body: HeartbeatResponse = {
     ok: true,

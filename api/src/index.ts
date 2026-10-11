@@ -7,6 +7,7 @@ import { getStore } from './store';
 import { heartbeat, postLogs, report } from './handlers/ingest';
 import { agent, agents, getLogs, me } from './handlers/read';
 import { createKey, listKeys, revokeKey } from './handlers/keys';
+import { deleteAlert, listAlerts, saveAlert, sweepAlerts, testAlert } from './handlers/alerts';
 
 function register(name: string, method: 'GET' | 'POST', route: string, handler: Handler) {
   app.http(name, {
@@ -48,3 +49,9 @@ register('getLogs', 'GET', 'v1/logs', getLogs);
 register('listKeys', 'GET', 'v1/keys', listKeys);
 register('createKey', 'POST', 'v1/keys', createKey);
 register('revokeKey', 'POST', 'v1/keys/revoke', revokeKey);
+
+register('listAlerts', 'GET', 'v1/alerts', listAlerts);
+register('saveAlert', 'POST', 'v1/alerts', saveAlert);
+register('deleteAlert', 'POST', 'v1/alerts/delete', deleteAlert);
+register('testAlert', 'POST', 'v1/alerts/test', testAlert);
+register('sweepAlerts', 'POST', 'v1/alerts/sweep', sweepAlerts);

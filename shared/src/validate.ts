@@ -3,16 +3,22 @@
 
 import {
   AGENT_KINDS,
+  ALERT_CHANNELS,
+  ALERT_EVENTS,
   LIMITS,
   LOG_LEVELS,
   REPORTED_STATES,
   type AgentKind,
+  type AlertChannel,
+  type AlertEvent,
+  type AlertSubscriptionInput,
   type HeartbeatInput,
   type LogEntryInput,
   type LogLevel,
   type LogsInput,
   type ReportedState,
   type ReportInput,
+  type WorkResultInput,
 } from './contract';
 
 export type Result<T> = { ok: true; value: T; warnings: string[] } | { ok: false; error: string };
@@ -133,6 +139,36 @@ function run<T>(body: unknown, what: string, fn: (r: Reader) => T): Result<T> {
   }
 }
 
+function readResult(raw: Record<string, unknown>, warnings: string[]): WorkResultInput {
+  const r = new Reader(raw, 'result');
+  const title = r.requiredString('title', 10_000).slice(0, LIMITS.resultTitleLength);
+  const summary = r.optionalString('summary', LIMITS.resultSummaryLength, { truncate: true });
+  if (summary == null || summary.trim() === '') throw new Invalid('result.summary is required and must be a non-empty string');
+  const value: WorkResultInput = { title, summary: summary.trim() };
+
+  const checks = (raw as { checks?: unknown }).checks;
+  if (checks !== undefined && checks !== null) {
+    if (!Array.isArray(checks) || checks.some((c) => typeof c !== 'string')) throw new Invalid('result.checks must be an array of strings');
+    const kept = (checks as string[]).map((c) => c.trim()).filter(Boolean);
+    if (kept.length > LIMITS.resultChecks) warnings.push(`result.checks was cut to ${LIMITS.resultChecks} items`);
+    value.checks = kept.slice(0, LIMITS.resultChecks).map((c) => c.slice(0, LIMITS.resultCheckLength));
+  }
+  const prompt = r.optionalString('prompt', LIMITS.promptLength, { truncate: true });
+  const commit = r.optionalString('commit', 64);
+  const commitUrl = r.optionalLink('commitUrl');
+  const branch = r.optionalString('branch', LIMITS.nameLength, { truncate: true });
+  const pushed = r.optionalBool('pushed');
+  if (prompt !== undefined) value.prompt = prompt;
+  if (commit !== undefined) value.commit = commit;
+  if (commitUrl !== undefined) value.commitUrl = commitUrl;
+  if (branch !== undefined) value.branch = branch;
+  if (pushed !== undefined) value.pushed = pushed;
+  const extra = r.unknownKeys().filter((k) => k !== 'checks');
+  if (extra.length) warnings.push(`Unknown field(s) result.${extra.join(', result.')} were ignored`);
+  warnings.push(...r.warnings);
+  return value;
+}
+
 const KIND_HINT = `kind must be one of ${AGENT_KINDS.join(', ')}`;
 
 export function validateReport(body: unknown): Result<ReportInput> {
@@ -151,6 +187,12 @@ export function validateReport(body: unknown): Result<ReportInput> {
       `state must be one of ${REPORTED_STATES.join(', ')} (the manager works out "lost" itself)`,
     );
     const activity = r.optionalString('activity', LIMITS.activityLength, { truncate: true });
+    const story = r.optionalString('story', LIMITS.storyLength, { truncate: true });
+    const task = r.optionalString('task', LIMITS.taskLength, { truncate: true });
+    const prompt = r.optionalString('prompt', LIMITS.promptLength, { truncate: true });
+    const turn = r.oneOf<'start' | 'end'>('turn', ['start', 'end'], false);
+    const rawResult = r.optionalObject('result');
+    const result = rawResult ? readResult(rawResult, r.warnings) : undefined;
     const link = r.optionalLink('link');
     const details = { ...(r.optionalObject('details') ?? {}) };
     const lostAfterSeconds = r.optionalInt('lostAfterSeconds', 30, 7 * 24 * 3600);
@@ -168,6 +210,11 @@ export function validateReport(body: unknown): Result<ReportInput> {
     if (parentId !== undefined) value.parentId = parentId;
     if (state !== undefined) value.state = state;
     if (activity !== undefined) value.activity = activity;
+    if (story !== undefined) value.story = story;
+    if (task !== undefined) value.task = task;
+    if (prompt !== undefined) value.prompt = prompt;
+    if (turn !== undefined) value.turn = turn;
+    if (result !== undefined) value.result = result;
     if (link !== undefined) value.link = link;
     if (lostAfterSeconds !== undefined) value.lostAfterSeconds = lostAfterSeconds;
     if (instructionsVersion !== undefined) value.instructionsVersion = instructionsVersion;
@@ -256,6 +303,57 @@ export function validateLogs(body: unknown): Result<LogsInput> {
     if (extra.length) r.warnings.push(`Unknown field(s) ${extra.join(', ')} were ignored`);
     const value: LogsInput = { entries };
     if (test !== undefined) value.test = test;
+    return value;
+  });
+}
+
+// ---- Alert subscriptions (Settings > Alerts), sent by the owner ----
+
+const MAX_ALERT_PROJECTS = 50;
+
+/** https, or http for a server on this PC (a local ntfy while testing). */
+function readAlertTarget(raw: string): string {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Invalid("target must be the topic's full URL, such as https://ntfy.sh/<topic>");
+  }
+  const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && local)) {
+    throw new Invalid('target must be an https URL (http only works for localhost)');
+  }
+  if (url.pathname.replace(/\/+$/, '') === '') throw new Invalid('target must include the topic, such as https://ntfy.sh/<topic>');
+  return url.toString();
+}
+
+function readStrings(raw: unknown, field: string): string[] {
+  if (!Array.isArray(raw) || raw.some((v) => typeof v !== 'string')) throw new Invalid(`${field} must be an array of strings`);
+  return [...new Set((raw as string[]).map((v) => v.trim()).filter(Boolean))];
+}
+
+export function validateAlertSubscription(body: unknown): Result<AlertSubscriptionInput> {
+  return run(body, 'an alert subscription', (r) => {
+    const id = r.optionalString('id', LIMITS.idLength);
+    const name = r.requiredString('name', LIMITS.nameLength);
+    const channel = r.oneOf<AlertChannel>('channel', ALERT_CHANNELS, false) ?? 'ntfy';
+    const target = readAlertTarget(r.requiredString('target', LIMITS.linkLength));
+
+    const events = readStrings(r.array('events'), 'events');
+    if (events.length === 0) throw new Invalid(`events must hold at least one of ${ALERT_EVENTS.join(', ')}`);
+    const unknown = events.filter((e) => !(ALERT_EVENTS as readonly string[]).includes(e));
+    if (unknown.length) throw new Invalid(`events must be some of ${ALERT_EVENTS.join(', ')}; ${unknown[0]} isn't one`);
+
+    const rawProjects = (body as { projects?: unknown }).projects;
+    const projects = rawProjects == null ? [] : readStrings(rawProjects, 'projects');
+    if (projects.length > MAX_ALERT_PROJECTS) throw new Invalid(`projects has more than ${MAX_ALERT_PROJECTS} entries`);
+    if (projects.some((p) => p.length > LIMITS.idLength)) throw new Invalid(`each project must be at most ${LIMITS.idLength} characters`);
+    const enabled = r.optionalBool('enabled');
+
+    const extra = r.unknownKeys().filter((k) => k !== 'projects');
+    if (extra.length) r.warnings.push(`Unknown field(s) ${extra.join(', ')} were ignored`);
+    const value: AlertSubscriptionInput = { name, channel, target, events: events as AlertEvent[], projects, enabled: enabled ?? true };
+    if (id) value.id = id;
     return value;
   });
 }

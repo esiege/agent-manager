@@ -4,11 +4,11 @@
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { INSTRUCTIONS_VERSION, REPORTED_STATES, type ReportInput, type ReportResponse, type ReportedState } from '@agent-manager/shared';
+import { INSTRUCTIONS_UPDATED, INSTRUCTIONS_VERSION, REPORTED_STATES, type ReportInput, type ReportResponse, type ReportedState } from '@agent-manager/shared';
 import { ConfigError, defaultMachineName, loadConfig, type Config } from './config';
 import { ensureDaemon, runDaemon } from './daemon';
 import { logLine, readJsonFile, writeJsonFile } from './files';
-import { projectName, findRepoRoot, readBranch } from './git';
+import { commitInfo, findRepoRoot, hasUncommittedChanges, projectName, readBranch, readHead } from './git';
 import { planHook, type HookInput, type PlannedReport } from './hook';
 import { paths } from './paths';
 import { ancestors, isAlive } from './proc';
@@ -17,48 +17,75 @@ import {
   addSubagent,
   listSessions,
   listSubagents,
+  readContext,
   readSendState,
   readSession,
   removeSubagent,
+  writeContext,
   writeSendState,
   writeSession,
+  type SessionContext,
 } from './sessions';
 import { hasAgentctlHooks, withAgentctlHooks, withoutAgentctlHooks } from './settings';
+import { splitChecks } from './result';
+import { readTranscript } from './transcript';
 
 const HELP = `agentctl: reports the Claude Code sessions on this PC to Agent Manager.
 
   agentctl install --url <url> [--key <key>] [--machine <name>]
       Saves the URL and machine key, checks them, and adds the reporting hooks to
       ~/.claude/settings.json (backing it up first). The key defaults to AGENT_MANAGER_KEY.
+      Run again after downloading a new agentctl.js to update: the URL and key are kept.
   agentctl uninstall          Removes the hooks (the config stays).
   agentctl status "<text>" [--state working|waiting|idle]
       Sets this session's one-line activity. Run it from a Claude Code shell.
+  agentctl story "<text>"     Sets the story this session is on: the ticket and its title, or a
+                              one-line summary of the goal. "agentctl story --clear" goes back to
+                              the one worked out from the branch and the session's title.
+  agentctl task "<text>"      Sets the technical step it is on, until the next prompt (or --clear).
+  agentctl done "<summary>" [--check "<what you should see>"]... [--title "<name>"] [--uncommitted]
+      Reports finished work: the commit (its subject is the title, linked to GitHub), the prompt,
+      the summary (Markdown; "-" reads it from stdin) and acceptance checks. Commit first: it
+      refuses while there are uncommitted changes, unless --uncommitted.
   agentctl test               Sends a test report and prints the answer.
   agentctl doctor             Shows the config, hooks, heartbeat, sessions and recent errors.
   agentctl hook               (used by the hooks) Reads one hook event from stdin.
   agentctl daemon             (started by the hooks) Runs the heartbeat.
 
-Exit codes: 0 done, 1 bad usage, 2 not set up, 3 session not found, 4 Agent Manager refused or unreachable.`;
+Exit codes: 0 done, 1 bad usage, 2 not set up, 3 session not found, 4 Agent Manager refused or
+unreachable, 5 uncommitted changes (done).`;
 
 class UsageError extends Error {}
 class NotFoundError extends Error {}
 
-function parseArgs(argv: string[]): { positional: string[]; flags: Record<string, string> } {
+/** Flags that take no value. */
+const SWITCHES = new Set(['clear', 'uncommitted']);
+
+/** Flags that can be given more than once; every value is kept in `lists`. */
+const REPEATED = new Set(['check']);
+
+function parseArgs(argv: string[]): { positional: string[]; flags: Record<string, string>; lists: Record<string, string[]> } {
   const positional: string[] = [];
   const flags: Record<string, string> = {};
+  const lists: Record<string, string[]> = {};
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
     if (a.startsWith('--')) {
       const [name, inline] = a.slice(2).split('=', 2) as [string, string | undefined];
+      if (SWITCHES.has(name) && inline === undefined) {
+        flags[name] = 'true';
+        continue;
+      }
       const value = inline ?? argv[i + 1];
       if (value === undefined || (inline === undefined && value.startsWith('--'))) throw new UsageError(`--${name} needs a value`);
       flags[name] = value;
+      if (REPEATED.has(name)) (lists[name] ??= []).push(value);
       if (inline === undefined) i++;
     } else {
       positional.push(a);
     }
   }
-  return { positional, flags };
+  return { positional, flags, lists };
 }
 
 function scriptPath(): string {
@@ -115,9 +142,21 @@ async function hookCommand() {
       const root = findRepoRoot(cwd);
       return root ? readBranch(root) : null;
     },
+    head: (cwd) => {
+      const root = findRepoRoot(cwd);
+      return root ? readHead(root) : null;
+    },
+    commit: (cwd, sha) => {
+      const root = findRepoRoot(cwd);
+      return root ? commitInfo(root, sha) : null;
+    },
+    transcript: readTranscript,
+    context: readContext(input.session_id),
+    sendPrompts: config.prompts !== false,
   });
 
   if (plan.sessionChanged) writeSession(plan.session);
+  if (plan.context) writeContext(input.session_id, plan.context);
   if (plan.subagentStart) addSubagent(input.session_id, plan.subagentStart);
   if (plan.subagentStop) removeSubagent(input.session_id, plan.subagentStop);
   if (input.hook_event_name === 'SessionStart' && process.env.CLAUDE_ENV_FILE) {
@@ -155,15 +194,11 @@ function findCallingSession() {
   return candidates[0];
 }
 
-async function statusCommand(positional: string[], flags: Record<string, string>) {
-  const text = positional.join(' ').trim();
-  if (!text) throw new UsageError('Usage: agentctl status "<what you are working on>" [--state working|waiting|idle]');
-  const state = flags.state as ReportedState | undefined;
-  if (state && !(REPORTED_STATES as readonly string[]).includes(state)) {
-    throw new UsageError(`--state must be one of ${REPORTED_STATES.join(', ')}`);
-  }
+type SessionFields = Pick<ReportInput, 'activity' | 'story' | 'task' | 'state' | 'result'>;
+
+/** Sends one report for the calling session, carrying just `fields`. */
+async function reportForSession(s: ReturnType<typeof findCallingSession>, fields: SessionFields): Promise<ReportResponse> {
   const config = loadConfig();
-  const s = findCallingSession();
   const report: ReportInput = {
     agentId: s.agentId,
     kind: 'claude-code',
@@ -171,13 +206,83 @@ async function statusCommand(positional: string[], flags: Record<string, string>
     name: s.name,
     project: s.project,
     instructionsVersion: INSTRUCTIONS_VERSION,
-    activity: text,
     at: new Date().toISOString(),
-    ...(state ? { state } : {}),
+    ...fields,
   };
   const res = await post<ReportResponse>(config, '/report', report);
   writeSendState(s.sessionId, s.agentId, { lastSentAt: Date.now(), pendingSeq: '' });
+  return res;
+}
+
+async function statusCommand(positional: string[], flags: Record<string, string>) {
+  const text = positional.join(' ').trim();
+  if (!text) throw new UsageError('Usage: agentctl status "<what you are working on>" [--state working|waiting|idle]');
+  const state = flags.state as ReportedState | undefined;
+  if (state && !(REPORTED_STATES as readonly string[]).includes(state)) {
+    throw new UsageError(`--state must be one of ${REPORTED_STATES.join(', ')}`);
+  }
+  const s = findCallingSession();
+  const res = await reportForSession(s, { activity: text, ...(state ? { state } : {}) });
   console.log(`Activity set for ${s.name}: ${res.agentUrl}`);
+}
+
+/** `agentctl story` and `agentctl task`: pin a value the hooks then keep sending (context.ts). */
+async function pinCommand(field: 'story' | 'task', positional: string[], flags: Record<string, string>) {
+  const clear = 'clear' in flags;
+  const text = positional.join(' ').trim();
+  if (!text && !clear) throw new UsageError(`Usage: agentctl ${field} "<text>" | agentctl ${field} --clear`);
+  const s = findCallingSession();
+  const context: SessionContext = { ...readContext(s.sessionId), [field]: clear ? undefined : text };
+  writeContext(s.sessionId, context);
+  // A cleared story goes back to the worked-out one at the next hook event.
+  const value = clear ? (field === 'task' ? (context.todo ?? null) : undefined) : text;
+  if (value === undefined) {
+    console.log(`Story cleared for ${s.name}; the next update works it out again.`);
+    return;
+  }
+  const res = await reportForSession(s, { [field]: value });
+  console.log(`${field === 'story' ? 'Story' : 'Task'} ${value ? 'set' : 'cleared'} for ${s.name}: ${res.agentUrl}`);
+}
+
+class UncommittedError extends Error {}
+
+/** `agentctl done`: the report of finished work, linked to the commit it made. */
+async function doneCommand(positional: string[], flags: Record<string, string>, lists: Record<string, string[]>) {
+  let text = positional.join(' ').trim();
+  if (text === '-') text = (await readStdin()).trim();
+  if (!text) throw new UsageError('Usage: agentctl done "<what you did>" [--check "<what the person should see>"]... [--title "<name>"]');
+  const s = findCallingSession();
+  const context = readContext(s.sessionId);
+  const root = findRepoRoot(s.cwd);
+
+  if (root && !('uncommitted' in flags) && hasUncommittedChanges(root)) {
+    throw new UncommittedError('There are uncommitted changes. Commit the work first (the report links to the commit), or pass --uncommitted.');
+  }
+  const head = root ? readHead(root) : null;
+  // Only a commit made during this request belongs to this report.
+  const madeNow = head !== null && head !== context.headAtPrompt;
+  const commit = root && head && madeNow ? commitInfo(root, head) : null;
+  const title = flags.title?.trim() || commit?.subject;
+  if (!title) throw new UsageError('No commit since the prompt to take a title from: commit first, or pass --title "<name>"');
+
+  // Checks can also come as a "How to check" list at the end of the summary.
+  const split = splitChecks(text);
+  const checks = [...(lists.check ?? []), ...split.checks];
+  const res = await reportForSession(s, {
+    result: {
+      title,
+      summary: split.summary || text,
+      checks,
+      commit: commit?.sha ?? null,
+      commitUrl: commit?.url ?? null,
+      branch: commit?.branch ?? (root ? readBranch(root) : null),
+      pushed: commit ? commit.pushed : null,
+    },
+  });
+  writeContext(s.sessionId, { ...context, ...(head ? { headAtPrompt: head } : {}), reported: true });
+  console.log(`Reported "${title}" for ${s.name}: ${res.agentUrl}`);
+  if (commit && !commit.pushed) console.log('The commit is not pushed yet: its link works once it is.');
+  if (!commit && !('uncommitted' in flags)) console.log('No commit was made during this request, so the report has no commit link.');
 }
 
 // ---- install / uninstall ----
@@ -218,13 +323,14 @@ function userEnvKey(): string {
 }
 
 async function installCommand(flags: Record<string, string>) {
-  const url = (flags.url || process.env.AGENT_MANAGER_URL || '').replace(/\/+$/, '');
-  const key =
-    flags.key || process.env.AGENT_MANAGER_KEY || userEnvKey() || readJsonFile<Partial<Config>>(paths.config())?.key || '';
-  const machine = flags.machine || readJsonFile<Partial<Config>>(paths.config())?.machine || defaultMachineName();
+  const saved = readJsonFile<Partial<Config>>(paths.config());
+  // An update re-runs install with no flags: everything comes from the saved config.
+  const url = (flags.url || process.env.AGENT_MANAGER_URL || saved?.url || '').replace(/\/+$/, '');
+  const key = flags.key || process.env.AGENT_MANAGER_KEY || userEnvKey() || saved?.key || '';
+  const machine = flags.machine || saved?.machine || defaultMachineName();
   if (!/^https?:\/\//.test(url)) throw new UsageError('Usage: agentctl install --url https://<your Agent Manager> [--key <key>] [--machine <name>]');
   if (!key) throw new UsageError('No machine key: make one on the Settings tab, then set AGENT_MANAGER_KEY or pass --key');
-  const config: Config = { url, key, machine };
+  const config: Config = { url, key, machine, ...(saved?.prompts === false ? { prompts: false } : {}) };
 
   // Check the URL and key before touching anything.
   const check = await post<ReportResponse>(config, '/report', {
@@ -240,7 +346,10 @@ async function installCommand(flags: Record<string, string>) {
   writeJsonFile(paths.config(), config);
 
   const backup = writeSettings(withAgentctlHooks(readSettings(), process.execPath, paths.script()));
-  console.log(`Agent Manager reporting is set up for ${machine}.
+  // A heartbeat still running the old agentctl stops; the next hook event starts the new one.
+  const daemon = readJsonFile<{ pid: number }>(paths.daemon());
+  if (daemon && isAlive(daemon.pid)) process.kill(daemon.pid);
+  console.log(`Agent Manager reporting is set up for ${machine} (instructions version ${INSTRUCTIONS_VERSION}, ${INSTRUCTIONS_UPDATED}).
   Config:    ${paths.config()}
   agentctl:  ${paths.script()}
   Hooks:     ${paths.claudeSettings()}${backup ? `\n  Backup:    ${backup}` : ''}
@@ -316,7 +425,7 @@ async function doctorCommand() {
 async function main(argv: string[]): Promise<number> {
   const [command, ...rest] = argv;
   try {
-    const { positional, flags } = parseArgs(rest);
+    const { positional, flags, lists } = parseArgs(rest);
     switch (command) {
       case 'hook':
         try {
@@ -337,6 +446,13 @@ async function main(argv: string[]): Promise<number> {
       case 'status':
         await statusCommand(positional, flags);
         return 0;
+      case 'story':
+      case 'task':
+        await pinCommand(command, positional, flags);
+        return 0;
+      case 'done':
+        await doneCommand(positional, flags, lists);
+        return 0;
       case 'test':
         await testCommand();
         return 0;
@@ -344,7 +460,7 @@ async function main(argv: string[]): Promise<number> {
         await doctorCommand();
         return 0;
       case 'version':
-        console.log(`agentctl, instructions version ${INSTRUCTIONS_VERSION}`);
+        console.log(`agentctl, instructions version ${INSTRUCTIONS_VERSION} (${INSTRUCTIONS_UPDATED})`);
         return 0;
       case undefined:
       case 'help':
@@ -361,6 +477,7 @@ async function main(argv: string[]): Promise<number> {
     if (e instanceof ConfigError) return 2;
     if (e instanceof NotFoundError) return 3;
     if (e instanceof SendError) return 4;
+    if (e instanceof UncommittedError) return 5;
     return 1;
   }
 }

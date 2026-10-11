@@ -32,6 +32,7 @@ export class MemoryStore implements Store {
     }
   }
 
+      for (const s of snap.alerts ?? []) this.alerts.set(s.id, s);
   private prune() {
     const cutoff = new Date(this.now().getTime() - RETENTION_DAYS * 86_400_000).toISOString();
     this.events = this.events.filter((e) => e.receivedAt >= cutoff);

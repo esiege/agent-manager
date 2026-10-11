@@ -1,5 +1,15 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { effectiveState, maskDeep, maskSecrets, validateHeartbeat, validateLogs, validateReport } from '../src';
+import {
+  effectiveState,
+  INSTRUCTIONS_UPDATED,
+  INSTRUCTIONS_VERSION,
+  maskDeep,
+  maskSecrets,
+  validateHeartbeat,
+  validateLogs,
+  validateReport,
+} from '../src';
 
 describe('validateReport', () => {
   const base = { agentId: 'pc/claude/1', kind: 'claude-code', machine: 'pc' };
@@ -88,5 +98,17 @@ describe('maskSecrets', () => {
 
   it('masks nested strings', () => {
     expect(maskDeep({ a: ['token: abcdef123'], n: 1 })).toEqual({ a: ['token: [masked]'], n: 1 });
+  });
+});
+
+describe('instructions pages', () => {
+  // The update page tells agents which version and date are current; it must match agentctl's.
+  it('show the same version and date as the code', () => {
+    const page = (name: string) => readFileSync(new URL(`../../web/public/${name}`, import.meta.url), 'utf8');
+    for (const name of ['instructions.md', 'update.md']) {
+      expect(page(name)).toContain(`Instructions version: **${INSTRUCTIONS_VERSION}**`);
+      expect(page(name)).toContain(`Updated: **${INSTRUCTIONS_UPDATED}**`);
+    }
+    expect(page('update.md')).toContain(`instructions version ${INSTRUCTIONS_VERSION} (${INSTRUCTIONS_UPDATED})`);
   });
 });

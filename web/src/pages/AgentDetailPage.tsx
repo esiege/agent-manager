@@ -1,15 +1,23 @@
-// U-03: one agent: header, resume commands (C-07), sub-agents, timeline, details and logs.
+// U-03: one agent: header (story, task, prompt), its latest finished work, resume commands (C-07),
+// sub-agents, timeline, details and logs.
 
-import { isRunning, type AgentDetailResponse, type AgentEvent, type AgentView, type LogEntry } from '@agent-manager/shared';
-import { Anchor, Box, Button, Group, Paper, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core';
-import { IconArrowLeft, IconExternalLink } from '@tabler/icons-react';
+import {
+  isRunning,
+  unfinishedReason,
+  type AgentDetailResponse,
+  type AgentEvent,
+  type AgentView,
+  type LogEntry,
+} from '@agent-manager/shared';
+import { Alert, Anchor, Box, Button, Group, Paper, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core';
+import { IconAlertTriangle, IconArrowLeft, IconExternalLink } from '@tabler/icons-react';
 import {
   createColumnHelper,
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { useCallback, useMemo, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useMemo, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useAgentsTable } from '../components/AgentsTable';
 import { OldSetupBadge, StateBadge } from '../components/Badges';
@@ -29,6 +37,9 @@ import { agentPath, isOldSetup, kindLabel, plural, safeHref, stateRank } from '.
 import { formatAbsolute, formatPrecise, syncServerClock } from '../lib/time';
 import { usePolling } from '../lib/usePolling';
 import { useSortParam } from '../lib/urlState';
+
+// The report brings the Markdown renderer, which most pages don't need.
+const WorkReport = lazy(() => import('../components/WorkReport').then((m) => ({ default: m.WorkReport })));
 
 const AGENT_LOGS_LIMIT = 200;
 const AGENT_LOGS_POLL_MS = 10_000;
@@ -104,13 +115,15 @@ function AgentHeader({ agent, flash }: { agent: AgentView; flash: boolean }) {
           <CopyIcon value={agent.id} label="Copy agent id" />
         </Group>
 
+        <Unfinished agent={agent} />
+
+        <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
+          <Now label="Story" text={agent.story} empty="No story reported" />
+          <Now label="Task" text={agent.task} empty="No task reported" below={agent.activity !== agent.task ? agent.activity : null} />
+          <Now label="Prompt" text={agent.prompt} empty="No prompt reported" when={agent.promptAt} clamp={8} />
+        </SimpleGrid>
+
         <div>
-          <Text size="xs" c="dimmed">
-            Activity
-          </Text>
-          <Text style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }} c={agent.activity ? undefined : 'dimmed'}>
-            {agent.activity || 'No activity reported'}
-          </Text>
           {agent.link && (
             <Group gap={4} mt={4} wrap="nowrap" miw={0}>
               {link ? (
@@ -163,6 +176,65 @@ function AgentHeader({ agent, flash }: { agent: AgentView; flash: boolean }) {
   );
 }
 
+interface NowProps {
+  label: string;
+  text: string | null;
+  empty: string;
+  /** A dimmed line under the text. */
+  below?: string | null;
+  when?: string | null;
+  clamp?: number;
+}
+
+/** One of story, task and prompt: what the agent is on now. */
+function Now({ label, text, empty, below, when, clamp }: NowProps) {
+  return (
+    <div style={{ minWidth: 0 }}>
+      <Group gap={6}>
+        <Text size="xs" c="dimmed">
+          {label}
+        </Text>
+        {when && (
+          <Text size="xs" c="dimmed">
+            · <RelativeTime iso={when} />
+          </Text>
+        )}
+      </Group>
+      <Text style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }} c={text ? undefined : 'dimmed'} lineClamp={clamp}>
+        {text || empty}
+      </Text>
+      {below && (
+        <Text size="sm" c="dimmed" style={{ overflowWrap: 'anywhere' }}>
+          {below}
+        </Text>
+      )}
+    </div>
+  );
+}
+
+function shorten(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+/** A request that never finished: failed, closed or cut off mid-way. */
+function Unfinished({ agent }: { agent: AgentView }) {
+  const reason = unfinishedReason(agent);
+  if (!reason || !agent.turn) return null;
+  return (
+    <Alert color="orange" variant="light" icon={<IconAlertTriangle size={18} />} title={`Unfinished: ${reason}`}>
+      <Text size="sm" style={{ overflowWrap: 'anywhere' }}>
+        The request from <RelativeTime iso={agent.turn.startedAt} /> never finished
+        {agent.turn.prompt ? <>: &ldquo;{shorten(agent.turn.prompt, 200)}&rdquo;</> : '.'}
+      </Text>
+      {agent.kind === 'claude-code' && (
+        <Text size="sm" mt={4}>
+          Open the session below to pick it up where it stopped.
+        </Text>
+      )}
+    </Alert>
+  );
+}
+
 // ---- Timeline ----
 
 const ev = createColumnHelper<AgentEvent>();
@@ -191,11 +263,7 @@ const EVENT_COLUMNS = [
     id: 'activity',
     header: 'Activity',
     sortingFn: 'text',
-    cell: ({ getValue }) => (
-      <Text size="sm" style={{ overflowWrap: 'anywhere' }} lineClamp={3}>
-        {getValue()}
-      </Text>
-    ),
+    cell: ({ row }) => <EventWhat event={row.original} />,
   }),
   ev.accessor((e) => e.link ?? '', {
     id: 'link',
@@ -223,11 +291,41 @@ const EVENT_COLUMNS = [
   }),
 ];
 
+/** What an event says: its activity, and the prompt, story, task or finished work it carried. */
+function EventWhat({ event }: { event: AgentEvent }) {
+  const lines: { label: string; text: string }[] = [];
+  if (event.prompt) lines.push({ label: 'Prompt', text: event.prompt });
+  if (event.result) lines.push({ label: 'Finished', text: event.result.title });
+  if (event.story) lines.push({ label: 'Story', text: event.story });
+  if (event.task) lines.push({ label: 'Task', text: event.task });
+  return (
+    <Stack gap={2}>
+      {event.activity && (
+        <Text size="sm" style={{ overflowWrap: 'anywhere' }} lineClamp={3}>
+          {event.activity}
+        </Text>
+      )}
+      {lines.map((l) => (
+        <Text key={l.label} size="sm" style={{ overflowWrap: 'anywhere' }} lineClamp={3}>
+          <Text span size="xs" c="dimmed">
+            {l.label}:{' '}
+          </Text>
+          {l.text}
+        </Text>
+      ))}
+    </Stack>
+  );
+}
+
 const EVENT_CSV_COLUMNS: CsvColumn<AgentEvent>[] = [
   { header: 'at', value: (e) => e.at },
   { header: 'type', value: (e) => e.type },
   { header: 'state', value: (e) => e.state },
   { header: 'activity', value: (e) => e.activity },
+  { header: 'prompt', value: (e) => e.prompt ?? null },
+  { header: 'story', value: (e) => e.story ?? null },
+  { header: 'task', value: (e) => e.task ?? null },
+  { header: 'result', value: (e) => (e.result ? jsonCell(e.result) : null) },
   { header: 'link', value: (e) => e.link },
   { header: 'details', value: (e) => jsonCell(e.details) },
   { header: 'receivedAt', value: (e) => e.receivedAt },
@@ -277,7 +375,7 @@ function SubAgents({ items, flashing }: { items: AgentView[]; flashing: Readonly
     data: items,
     sorting,
     onSortingChange,
-    columnVisibility: { kind: false, machine: false, project: false },
+    columnVisibility: { kind: false, machine: false, project: false, story: false, prompt: false },
   });
   const running = items.filter((a) => isRunning(a.effectiveState)).length;
   return (
@@ -431,6 +529,13 @@ export function AgentDetailPage() {
       ) : (
         <>
           <AgentHeader agent={data.agent} flash={flashing.has(data.agent.id)} />
+          {data.agent.result && (
+            <Section title="Finished work">
+              <Suspense fallback={<TableSkeleton rows={3} />}>
+                <WorkReport result={data.agent.result} />
+              </Suspense>
+            </Section>
+          )}
           {data.children.length > 0 && <SubAgents items={data.children} flashing={flashing} />}
           <Timeline agentId={data.agent.id} events={data.events} />
           <Section title="Details">

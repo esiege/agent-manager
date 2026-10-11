@@ -2,13 +2,18 @@
 // without files or a network; agentctl.ts does the reading, writing and sending.
 
 import { INSTRUCTIONS_VERSION, type ReportInput, type ReportedState } from '@agent-manager/shared';
+import { promptText, storyFrom, taskFromTool } from './context';
 import { describeTool } from './describe';
-import type { SessionRecord, SubagentRecord } from './sessions';
+import type { CommitInfo } from './git';
+import { resultFrom } from './result';
+import type { SessionContext, SessionRecord, SubagentRecord } from './sessions';
+import type { TranscriptInfo } from './transcript';
 
 /** The stdin fields agentctl reads. Everything else Claude Code sends is ignored and never leaves the PC. */
 export interface HookInput {
   hook_event_name: string;
   session_id: string;
+  transcript_path?: string;
   cwd?: string;
   permission_mode?: string;
   agent_id?: string;
@@ -16,6 +21,8 @@ export interface HookInput {
   source?: string;
   model?: string;
   session_title?: string;
+  /** UserPromptSubmit: what the person typed. Sent only as the agent's prompt, and only if allowed. */
+  prompt?: string;
   reason?: string;
   tool_name?: string;
   tool_input?: unknown;
@@ -23,6 +30,8 @@ export interface HookInput {
   title?: string;
   notification_type?: string;
   error?: string;
+  /** Stop: the agent's final message, used for the report of finished work. */
+  last_assistant_message?: string;
 }
 
 export interface PlannedReport {
@@ -37,6 +46,8 @@ export interface Plan {
   reports: PlannedReport[];
   subagentStart?: SubagentRecord;
   subagentStop?: string;
+  /** The session's context.json, when this event changes it. */
+  context?: SessionContext;
   ensureDaemon: boolean;
 }
 
@@ -49,7 +60,20 @@ export interface PlanContext {
   entrypoint: string | undefined;
   project: (cwd: string) => string;
   branch: (cwd: string) => string | null;
+  /** The commit HEAD points at (read from .git, fast). */
+  head: (cwd: string) => string | null;
+  /** About a commit, from git (slow: only used when a request ends with a new commit). */
+  commit: (cwd: string, sha: string) => CommitInfo | null;
+  /** What the transcript says; read at most once per event. */
+  transcript: (path: string | undefined) => TranscriptInfo;
+  /** The session's context.json. */
+  context: SessionContext;
+  /** False when the config keeps prompts on this PC. */
+  sendPrompts: boolean;
 }
+
+/** Events that say nothing about the story or task; they report only state and activity. */
+const PLAIN_EVENTS = new Set(['Notification', 'SessionEnd', 'StopFailure', 'SubagentStart', 'SubagentStop']);
 
 const WAITING_NOTIFICATIONS = new Set(['permission_prompt', 'elicitation_dialog', 'elicitation_url_dialog', 'agent_needs_input']);
 const IDLE_NOTIFICATIONS = new Set(['idle_prompt']);
@@ -122,6 +146,43 @@ export function planHook(
     }
   }
 
+  // ---- Story, task and prompt (context.ts) ----
+  const main = !input.agent_id;
+  let context = ctx.context;
+  const what: Pick<ReportInput, 'story' | 'task' | 'prompt' | 'turn' | 'result'> = {};
+  if (main && !PLAIN_EVENTS.has(event)) {
+    let transcript: TranscriptInfo | null = null;
+    const read = () => (transcript ??= ctx.transcript(input.transcript_path));
+
+    if (event === 'UserPromptSubmit') {
+      // A new prompt starts a new request and task: drop the task agentctl pinned for the last,
+      // and note HEAD, so Stop can tell whether this request made a commit.
+      context = { ...context, task: undefined, headAtPrompt: ctx.head(cwd) ?? undefined, reported: undefined };
+      if (ctx.sendPrompts) what.prompt = promptText(input.prompt);
+      what.task = context.todo ?? null;
+      what.turn = 'start';
+    }
+    if (event === 'Stop') {
+      what.turn = 'end';
+      // Committed but didn't send a report with agentctl done: build one from the commit.
+      const head = context.headAtPrompt !== undefined && !context.reported ? ctx.head(cwd) : null;
+      if (head && head !== context.headAtPrompt) {
+        const commit = ctx.commit(cwd, head);
+        if (commit) what.result = resultFrom(commit, input.last_assistant_message);
+        context = { ...context, headAtPrompt: head, reported: true };
+      }
+    }
+    if (event === 'PreToolUse') {
+      const todo = taskFromTool(input.tool_name ?? '', input.tool_input);
+      if (todo !== undefined && todo !== (context.todo ?? null)) context = { ...context, todo: todo ?? undefined };
+      const task = context.task ?? context.todo ?? read().narration;
+      if (task) what.task = task;
+    }
+    const title = input.session_title?.trim() || read().title;
+    const story = context.story ?? storyFrom(ctx.branch(cwd), title);
+    if (story) what.story = story;
+  }
+
   const base = (): ReportInput => ({
     agentId: session.agentId,
     kind: 'claude-code',
@@ -134,7 +195,7 @@ export function planHook(
     ...(isNew ? { parentId: null, details: session.details } : {}),
   });
   const sessionReport = (state: ReportedState, activity: string, coalesce = false): PlannedReport => ({
-    report: { ...base(), state, activity },
+    report: { ...base(), state, activity, ...what },
     coalesce,
   });
   const subReport = (subagentId: string, agentType: string | undefined, state: ReportedState, activity: string, coalesce = false): PlannedReport => ({
@@ -154,6 +215,7 @@ export function planHook(
   });
 
   const plan: Plan = { session, sessionChanged, reports: [], ensureDaemon: isNew };
+  if (context !== ctx.context) plan.context = context;
 
   switch (event) {
     case 'SessionStart': {

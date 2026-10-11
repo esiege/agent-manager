@@ -5,6 +5,7 @@ import { AuthGate } from './components/AuthGate';
 import { TableSkeleton } from './components/States';
 import { AgentDetailPage } from './pages/AgentDetailPage';
 import { AgentsPage } from './pages/AgentsPage';
+import { DashboardPage } from './pages/DashboardPage';
 import { LogsPage } from './pages/LogsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { OverviewPage } from './pages/OverviewPage';
@@ -19,6 +20,7 @@ export function App() {
       <Routes>
         <Route element={<AppLayout />}>
           <Route index element={<OverviewPage />} />
+          <Route path="dashboard" element={<DashboardPage />} />
           <Route path="agents" element={<AgentsPage />} />
           <Route path="agents/detail" element={<AgentDetailPage />} />
           <Route path="logs" element={<LogsPage />} />

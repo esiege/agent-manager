@@ -1,6 +1,6 @@
 // U-01: the status (phase 2), counts by state, and what needs the owner.
 
-import { RECENT_DAYS, needsAttention, type AgentState, type AgentView } from '@agent-manager/shared';
+import { RECENT_DAYS, needsAttention, unfinishedReason, type AgentState, type AgentView } from '@agent-manager/shared';
 import { Anchor, Group, Paper, SimpleGrid, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
 import { Link, useNavigate } from 'react-router';
 import { StateBadge } from '../components/Badges';
@@ -23,6 +23,16 @@ const CARDS: { state: AgentState; label: string }[] = [
 /** When the agent started needing the owner: when it went silent if Lost, else its last report. */
 function since(agent: AgentView): string {
   return agent.effectiveState === 'lost' ? agent.lastSeen : agent.lastReportAt;
+}
+
+/** Requests cut off this long ago stop asking for attention. */
+const UNFINISHED_WINDOW_MS = 24 * 3600_000;
+
+/** Needs the owner: waiting, failed or lost, or a request that never finished in the last day. */
+function needsYou(agent: AgentView, now: number): boolean {
+  if (needsAttention(agent.effectiveState)) return true;
+  const reason = unfinishedReason(agent);
+  return reason !== null && !agent.parentId && now - Date.parse(agent.turn?.endedAt ?? agent.lastSeen) < UNFINISHED_WINDOW_MS;
 }
 
 function StatusPlaceholder() {
@@ -103,8 +113,9 @@ function StatCards({ agents }: { agents: AgentView[] }) {
 
 function NeedsYou({ agents, flashing }: { agents: AgentView[]; flashing: ReadonlySet<string> }) {
   const navigate = useNavigate();
+  const now = Date.now();
   const list = agents
-    .filter((a) => needsAttention(a.effectiveState))
+    .filter((a) => needsYou(a, now))
     .sort((a, b) => Date.parse(since(b)) - Date.parse(since(a)));
 
   return (
@@ -113,7 +124,7 @@ function NeedsYou({ agents, flashing }: { agents: AgentView[]; flashing: Readonl
         Needs you
       </Title>
       {list.length === 0 ? (
-        <EmptyState title="Nothing needs you">No agent is waiting on you, failed or lost.</EmptyState>
+        <EmptyState title="Nothing needs you">No agent is waiting on you, failed, lost or cut off mid-request.</EmptyState>
       ) : (
         <Table.ScrollContainer minWidth={640} type="native">
           <Table highlightOnHover verticalSpacing={6} fz="sm" aria-label="Agents that need you">
@@ -146,7 +157,11 @@ function NeedsYou({ agents, flashing }: { agents: AgentView[]; flashing: Readonl
                     <StateBadge state={a.effectiveState} />
                   </Table.Td>
                   <Table.Td>
-                    {a.activity ? (
+                    {unfinishedReason(a) ? (
+                      <Text size="sm" c="orange" truncate="end" maw={420}>
+                        Unfinished: {unfinishedReason(a)}
+                      </Text>
+                    ) : a.activity ? (
                       <Tooltip label={a.activity} multiline maw={480} openDelay={400}>
                         <Text size="sm" truncate="end" maw={420}>
                           {a.activity}

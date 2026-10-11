@@ -1,4 +1,5 @@
 // U-02: every live agent and those stopped in the last week, filterable, sortable, nested.
+// One row per agent: a project's sessions on one machine share a row that opens to show each.
 
 import { AGENT_KINDS, RECENT_DAYS, type AgentView } from '@agent-manager/shared';
 import { Anchor, Button, Group, MultiSelect, Switch, Text } from '@mantine/core';
@@ -6,7 +7,7 @@ import { IconSearch } from '@tabler/icons-react';
 import type { ExpandedState } from '@tanstack/react-table';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { useAgentsTable } from '../components/AgentsTable';
+import { rowAgentId, useAgentsTable } from '../components/AgentsTable';
 import { DataTable, sortedRows } from '../components/DataTable';
 import { DebouncedTextInput } from '../components/DebouncedTextInput';
 import { ExportMenu } from '../components/ExportMenu';
@@ -15,13 +16,22 @@ import { PageHeader } from '../components/PageHeader';
 import { EmptyState, LoadError, TableSkeleton } from '../components/States';
 import { UpdatedAgo } from '../components/Time';
 import { useAgentsFeed } from '../hooks/useAgentsFeed';
-import { AGENT_CSV_COLUMNS, buildAgentTree, hasActiveFilters, matchesFilters, type AgentFilters } from '../lib/agents';
+import {
+  AGENT_CSV_COLUMNS,
+  buildAgentTree,
+  groupRows,
+  hasActiveFilters,
+  matchesFilters,
+  type AgentFilters,
+} from '../lib/agents';
 import { AGENT_STATES, agentPath, KIND_LABEL, plural, STATE_LABEL } from '../lib/labels';
 import { useSortParam, useUrlState } from '../lib/urlState';
 
 const KIND_OPTIONS = AGENT_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }));
 const STATE_OPTIONS = AGENT_STATES.map((s) => ({ value: s, label: STATE_LABEL[s] }));
 const NO_AGENTS: AgentView[] = [];
+/** The kind is nearly always Claude Code, the project is in the name, and Started is on each agent's page. */
+const HIDDEN_COLUMNS = { kind: false, project: false, started: false };
 
 /** Options from the data, plus any selected value the data no longer has (so it still shows). */
 function optionsFrom(values: Iterable<string>, selected: readonly string[]): string[] {
@@ -52,6 +62,7 @@ export function AgentsPage() {
 
   const agents = data?.agents ?? NO_AGENTS;
   const tree = useMemo(() => buildAgentTree(agents, (a) => matchesFilters(a, filters)), [agents, filters]);
+  const rows = useMemo(() => groupRows(tree.roots), [tree.roots]);
   const machineOptions = useMemo(
     () => optionsFrom(new Set(agents.map((a) => a.machine)), filters.machines),
     [agents, filters.machines],
@@ -65,26 +76,29 @@ export function AgentsPage() {
   }, [filtering, filterKey]);
 
   const table = useAgentsTable({
-    data: tree.roots,
+    data: rows,
     childrenOf: tree.children,
     sorting,
     onSortingChange,
     expanded,
     onExpandedChange: setExpanded,
+    columnVisibility: HIDDEN_COLUMNS,
   });
-  const anyNested = tree.children.size > 0;
+  const anyNested = tree.children.size > 0 || rows.some((r) => r.group);
+  // Exports list sessions, not the rows that stand for a group of them.
+  const exportRows = () => sortedRows(table).filter((r) => !r.group);
 
   return (
     <>
       <PageHeader title="Agents">
         <UpdatedAgo updatedAt={updatedAt} error={error} />
-        <ExportMenu baseName="agents" rows={() => sortedRows(table)} columns={AGENT_CSV_COLUMNS} count={tree.flat.length} />
+        <ExportMenu baseName="agents" rows={exportRows} columns={AGENT_CSV_COLUMNS} count={tree.flat.length} />
       </PageHeader>
 
       <FilterBar activeCount={activeCount}>
         <DebouncedTextInput
           label="Search"
-          placeholder="Name, id, project, activity"
+          placeholder="Name, project, story, task, prompt"
           leftSection={<IconSearch size={16} />}
           value={filters.q}
           onCommit={(q) => update({ q })}
@@ -156,8 +170,8 @@ export function AgentsPage() {
           <Group justify="space-between" mb={4} gap="xs">
             <Text size="sm" c="dimmed">
               {tree.matched.size === agents.length
-                ? `${plural(agents.length, 'agent')} seen in the last ${RECENT_DAYS} days`
-                : `Showing ${tree.matched.size} of ${plural(agents.length, 'agent')}`}
+                ? `${plural(rows.length, 'agent')} seen in the last ${RECENT_DAYS} days (${agents.length} sessions and sub-agents)`
+                : `Showing ${tree.matched.size} of ${plural(agents.length, 'session')}`}
             </Text>
             {anyNested && (
               <Button variant="subtle" size="compact-xs" onClick={() => table.toggleAllRowsExpanded()}>
@@ -169,11 +183,11 @@ export function AgentsPage() {
             table={table}
             label="Agents"
             minWidth={1100}
-            onRowClick={(row) => navigate(agentPath(row.original.id))}
+            onRowClick={(row) => navigate(agentPath(rowAgentId(row.original)))}
             rowClassName={(row) => {
               const classes = [];
-              if (flashing.has(row.original.id)) classes.push('am-flash');
-              if (!tree.matched.has(row.original.id)) classes.push('am-context');
+              if (flashing.has(rowAgentId(row.original))) classes.push('am-flash');
+              if (!row.original.group && !tree.matched.has(row.original.id)) classes.push('am-context');
               return classes.join(' ') || undefined;
             }}
           />

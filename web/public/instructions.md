@@ -1,13 +1,15 @@
 # Agent Manager: how to report in
 
-Instructions version: **1**
+Instructions version: **2** · Updated: **2026-10-11**
+
+Already set up on this PC? Follow `$MANAGER_URL/update.md` instead: it checks whether you're on the latest and updates if not.
 
 You are an AI agent (Claude Code, OpenClaw, or something else) and the person you work for wants you to report to their Agent Manager. This page tells you how. Follow the section for your kind of agent, then run its check at the end.
 
 - **`$MANAGER_URL`** below means the address you fetched this page from, without `/instructions.md` (for example `https://agents.example.net`).
 - If a tool gave you a summary of this page, fetch the raw file (`curl -fsSL $MANAGER_URL/instructions.md`) so you have the exact commands.
 - **The machine key is a secret.** It is never on this page. Read it from the `AGENT_MANAGER_KEY` environment variable. Don't print it, log it or write it into files other than the ones these steps name. If it isn't set, stop and ask the person to make a key on the **Settings** tab of Agent Manager and save it as `AGENT_MANAGER_KEY`.
-- Never send prompts, file contents, command lines, tool output or anything secret to Agent Manager. Send short status lines only.
+- Never send file contents, command lines, tool output or anything secret to Agent Manager. Send short status lines, the person's prompt, and short reports of finished work only.
 
 ## Claude Code
 
@@ -46,14 +48,22 @@ node "$HOME\.agent-manager\agentctl.js" doctor
 
 Tell them: the key must already be saved as `AGENT_MANAGER_KEY` (made on the Settings tab); install finds it on its own, so it never goes on the command line; and `doctor` should show `Hooks: installed` and `Connection: OK`. Use the bash commands from step 2 instead if this PC isn't Windows.
 
-Optional: to let agents add a one-line summary of what they're working on, add this to the project's or the user's `CLAUDE.md`:
+What each session reports on its own: its **story** (the ticket in the branch name, such as `AM-123`, with the session's title, or the title alone), its **task** (the in-progress item of its todo list, or the first line of what it last said), and the person's **prompt**. When a request ends with a new commit, it also reports the **finished work**: the commit's subject and link, the prompt, and the agent's final message. To keep prompts on the PC, add `"prompts": false` to `~/.agent-manager/config.json`.
+
+Recommended: add this to the project's or the user's `CLAUDE.md`, so agents name their story and write a proper report of finished work:
 
 ```markdown
 ## Agent Manager
-When you start a task, and before any step that takes more than a few minutes, run
-`node "$HOME/.agent-manager/agentctl.js" status "<one line: what you're doing>"`.
-Keep it short and plain. Never include secrets, file contents or command lines.
+- When you start on a story or ticket, run
+  `node "$HOME/.agent-manager/agentctl.js" story "<KEY-123: the story's title, or one line on the goal>"`.
+- When you finish a request that changed files: commit it (one commit, with a clear subject: it
+  becomes the report's name), then report it:
+  `node "$HOME/.agent-manager/agentctl.js" done "<2 to 5 short Markdown bullets: what you did>" --check "<what the person should see now>" --check "..."`
+  Keep the checks few and concrete: where to look, and what they'll see there.
+- Keep everything short and plain. Never include secrets, file contents or command lines.
 ```
+
+`agentctl done` refuses while there are uncommitted changes, so the report always links to the work (`--uncommitted` sends it anyway). `agentctl task "<text>"` pins the technical step until the next prompt, and `agentctl status "<text>"` sets the one-line activity.
 
 To remove it: `node "$HOME/.agent-manager/agentctl.js" uninstall`.
 
@@ -85,6 +95,11 @@ Two calls cover most agents: **report** your state, and send **logs**. Every cal
 | `parentId` | no | The `agentId` of the agent that started you, if you are a sub-agent. |
 | `state` | no | `working`, `waiting` (waiting on the person), `idle`, `stopped` or `failed`. Agent Manager works out `lost` itself from silence. |
 | `activity` | no | One line: what you're doing now (up to 500 characters). |
+| `story` | no | The story or goal you're on: a ticket and its title (`AM-123: Export to CSV`), or a one-line summary (up to 300). |
+| `task` | no | The technical step you're on now (up to 300). |
+| `prompt` | no | The person's latest request to you (up to 2,000). Values that look like secrets are masked. |
+| `turn` | no | `start` when a request starts, `end` when you've finished it. A request that fails (`state: failed`), stops, or goes silent before `end` shows as unfinished. |
+| `result` | no | The report of finished work: `{"title", "summary" (Markdown), "checks": ["what the person should see"], "commitUrl", "commit", "branch", "pushed"}`. `title` and `summary` are required. |
 | `link` | no | An http(s) link to something you made or posted. |
 | `details` | no | Any other JSON you want shown. Unknown top-level fields are kept here too. |
 | `lostAfterSeconds` | no | How long silence means Lost. Default 180. |
@@ -97,12 +112,12 @@ curl:
 ```bash
 curl -fsS -X POST "$MANAGER_URL/api/v1/report" \
   -H "X-Agent-Manager-Key: $AGENT_MANAGER_KEY" -H "Content-Type: application/json" \
-  -d '{"agentId":"openclaw/community-web","kind":"openclaw","machine":"claw-host","name":"Community manager (web)","state":"working","activity":"Answering new comments","lostAfterSeconds":300,"instructionsVersion":1}'
+  -d '{"agentId":"openclaw/community-web","kind":"openclaw","machine":"claw-host","name":"Community manager (web)","state":"working","activity":"Answering new comments","lostAfterSeconds":300,"instructionsVersion":2}'
 ```
 
 PowerShell:
 ```powershell
-$body = @{ agentId = 'gma/functions'; kind = 'service'; machine = 'azure'; name = 'Game Master Assistant'; state = 'working'; activity = 'Serving requests'; instructionsVersion = 1 } | ConvertTo-Json
+$body = @{ agentId = 'gma/functions'; kind = 'service'; machine = 'azure'; name = 'Game Master Assistant'; state = 'working'; activity = 'Serving requests'; instructionsVersion = 2 } | ConvertTo-Json
 Invoke-RestMethod -Method Post "$MANAGER_URL/api/v1/report" -Headers @{ "X-Agent-Manager-Key" = $env:AGENT_MANAGER_KEY } -ContentType 'application/json' -Body $body
 ```
 
@@ -121,7 +136,7 @@ def report(manager_url: str, **fields) -> dict:
         return json.load(res)
 
 report("https://agents.example.net", agentId="openclaw/community-game", kind="openclaw", machine="claw-host",
-       state="working", activity="Posted patch notes for 1.4", link="https://example.com/news/1-4", instructionsVersion=1)
+       state="working", activity="Posted patch notes for 1.4", link="https://example.com/news/1-4", instructionsVersion=2)
 ```
 
 The answer includes `agentUrl`, the agent's page in Agent Manager, and `warnings` for anything that was adjusted (for example a field that was too long).

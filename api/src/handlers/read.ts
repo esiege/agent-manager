@@ -14,10 +14,12 @@ import {
   type MeResponse,
 } from '@agent-manager/shared';
 import { requireOwner } from '../auth';
-import { HttpError, ok, query, type Handler } from '../http';
+import { sweepLost } from '../alerts';
+import { HttpError, ok, publicOrigin, query, type Handler } from '../http';
 import type { LogFilter } from '../store/types';
 
 const MAX_EVENTS = 500;
+const MAX_MESSAGES = 20;
 const DEFAULT_LOG_LIMIT = 1000;
 const MAX_LOG_LIMIT = 5000;
 
@@ -27,7 +29,18 @@ function toViews(agents: Agent[], now: number): AgentView[] {
   for (const a of agents) {
     if (a.parentId && isRunning(states.get(a.id)!)) running.set(a.parentId, (running.get(a.parentId) ?? 0) + 1);
   }
-  return agents.map((a) => ({ ...a, effectiveState: states.get(a.id)!, runningChildren: running.get(a.id) ?? 0 }));
+  return agents.map((a) => ({
+    ...a,
+    // Agents stored before story, task and prompt existed.
+    story: a.story ?? null,
+    task: a.task ?? null,
+    prompt: a.prompt ?? null,
+    promptAt: a.promptAt ?? null,
+    turn: a.turn ?? null,
+    result: a.result ?? null,
+    effectiveState: states.get(a.id)!,
+    runningChildren: running.get(a.id) ?? 0,
+  }));
 }
 
 export const me: Handler = async (req, ctx) => {
@@ -45,6 +58,7 @@ export const agents: Handler = async (req, ctx) => {
   const now = ctx.now();
   const since = new Date(now.getTime() - days * 86_400_000).toISOString();
   const list = await ctx.store.listAgentsSeenSince(since);
+  await sweepLost(ctx, publicOrigin(req, ctx.env), { agents: list });
   const body: AgentsResponse = { now: now.toISOString(), agents: toViews(list, now.getTime()) };
   return ok(body);
 };

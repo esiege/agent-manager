@@ -134,13 +134,16 @@ A log entry:
 | ID | Requirement | Priority | Phase |
 | --- | --- | --- | --- |
 | C-01 | Sessions report from hooks: session start and end, sub-agent start and stop, waiting on you (Notification), turn end (Stop), API failure (StopFailure), and tool activity. | Must | 1 |
-| C-02 | Only these fields leave the PC: session id, name, project folder, git branch, model, surface, tool name, the tool call's description, state and times. Prompts, tool inputs, tool outputs and file contents never do. | Must | 1 |
+| C-02 | Only these fields leave the PC: session id, name, project folder, git branch, model, surface, tool name, the tool call's description, state and times; the story, task and prompt (C-09); and reports of finished work (C-10). Tool inputs, tool outputs and file contents never do. The person's prompt can be kept on the PC with `"prompts": false` in agentctl's config. The manager masks values in prompts and reports that look like keys or tokens. | Must | 1 |
 | C-03 | Reporting never slows or blocks an agent: under 50 ms added per tool call, and sessions run as normal while the manager is down. | Must | 1 |
 | C-04 | Activity updates are combined: at most one report per session every 2 s, always carrying the latest. | Should | 1 |
 | C-05 | A machine heartbeat every 60 s lists the live sessions on the PC, so a closed window or a shut-down PC shows as Stopped or Lost. | Must | 1 |
 | C-06 | Sub-agents appear nested under their session, with a count of the running ones ("3 threads"). | Should | 1 |
 | C-07 | Each session offers a copyable `claude --resume <id>` command and a `vscode://anthropic.claude-code/open?session=<id>` link, which focuses the session's tab when it's open on that PC. | Should | 1 |
 | C-08 | `agentctl status "<text>"` lets an agent set its own one-line summary. It finds the calling session without being told. | Should | 1 |
+| C-09 | Each session reports what it is on in three parts. **Story**: the ticket in the branch name (such as `AM-123`) with the session's title, else the title; `agentctl story` overrides it. **Task**: the in-progress item of its todo list, else the first line of what the agent last said; `agentctl task` overrides it until the next prompt. **Prompt**: the person's latest prompt, with pasted blocks shortened. | Must | 1 |
+| C-10 | When a request ends, the session reports a turn end. When the agent made a commit during it, it also reports the finished work: the commit's subject as its name, a link to the commit, the prompt, a summary, and acceptance steps (what the person should see now). `agentctl done` sends one the agent wrote, and refuses while changes are uncommitted. | Must | 1 |
+| C-11 | A request that never finishes is shown as unfinished, with why: failed (API error), stopped mid-request (session closed), cut off by a new prompt, or connection lost (the agent went Lost mid-request). | Must | 1 |
 
 ## OpenClaw and services
 
@@ -171,8 +174,8 @@ React and TypeScript. Tabs across the top, every list sortable and filterable, a
 | ID | Requirement | Priority | Phase |
 | --- | --- | --- | --- |
 | U-01 | **Overview** tab: the status at the top, counts by state (working, waiting on you, failed, lost), and a "Needs you" list. | Must | 1 |
-| U-02 | **Agents** tab: one table of live agents and those stopped in the last 7 days. Sortable by any column (name, kind, machine, project, state, activity, started, last seen), filterable by kind, machine and state, with sub-agents nested. | Must | 1 |
-| U-03 | Agent detail: the timeline of events, current activity, sub-agents, details as formatted JSON, and the agent's logs. | Must | 1 |
+| U-02 | **Agents** tab: one row per agent (a project's sessions on one machine are one agent; the row opens to show each session) for live agents and those stopped in the last 7 days. Columns: name, machine, state (with an unfinished warning), story (with the latest finished work), task (with the activity), prompt, threads, last seen. Sortable by any column, filterable by kind, machine and state, with sub-agents nested. | Must | 1 |
+| U-03 | Agent detail: story, task and prompt, why a request is unfinished, the latest report of finished work, the timeline of events, sub-agents, details as formatted JSON, and the agent's logs. | Must | 1 |
 | U-04 | **Logs** tab: every log, newest first, sortable, filterable by level, source, agent, correlation id, text and time range. | Must | 1 |
 | U-05 | Export the current filtered view of logs, events or agents as CSV or JSON. | Must | 1 |
 | U-06 | Copy buttons on ids, commands, links, log entries (as JSON), and every code block on the instructions page. | Must | 1 |
@@ -181,6 +184,8 @@ React and TypeScript. Tabs across the top, every list sortable and filterable, a
 | U-09 | Lists refresh without a reload, at most 10 s behind. A row that changes state flashes briefly. | Should | 1 |
 | U-10 | Light and dark themes. Filters and sort order live in the URL, so a view can be bookmarked. | Should | 1 |
 | U-11 | Works at phone width. | Could | 2 |
+| U-12 | **Dashboard** tab: one tile per agent, sized to fill the screen without scrolling (on a phone too), showing its state, story, task and prompt, and whether its last request finished or was cut off. | Must | 1 |
+| U-13 | **Alerts** (Settings): subscriptions that send a phone alert through ntfy (free) when an agent finishes a request, needs the owner, fails, or is cut off mid-request, optionally only for some projects. | Should | 1 |
 
 ## Acceptance scenarios
 
@@ -201,7 +206,7 @@ Phase 1 is done when scenarios 1–5 pass on the owner's PCs with real sessions 
 | --- | --- |
 | Hosting | Azure: Static Web Apps, Functions, Cosmos DB serverless, Application Insights. Target under $20 a month at personal volume. |
 | Access | The UI and the read API need the owner's sign-in. Machine keys can only write reports, heartbeats and logs. HTTPS only. |
-| Privacy | Claude Code reporters send only the fields in C-02. Logs hold whatever clients send, so clients must not log secrets, and the manager masks values that look like keys or tokens. |
+| Privacy | Claude Code reporters send only the fields in C-02. Alerts go to the ntfy topic the owner chose; anyone who knows the topic can read them, so topics are long and random. Logs hold whatever clients send, so clients must not log secrets, and the manager masks values that look like keys or tokens. |
 | Retention | Events and logs 30 days. Agents listed as recently stopped for 7 days. Status runs 90 days. |
 | Freshness | The UI is at most 10 s behind a report. |
 | Scale | 10 machines, 50 live agents, 100,000 events and 100,000 log entries a day. |

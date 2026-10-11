@@ -44,6 +44,7 @@ resource database 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-05-15
 var containers = [
   { id: 'agents', partitionKey: '/id', ttl: null }
   { id: 'keys', partitionKey: '/id', ttl: null }
+  { id: 'alerts', partitionKey: '/id', ttl: null }
   { id: 'events', partitionKey: '/agentId', ttl: retentionSeconds }
   { id: 'logs', partitionKey: '/source', ttl: retentionSeconds }
 ]
