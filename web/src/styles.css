@@ -1,0 +1,71 @@
+/* A row whose state just changed (U-09). */
+@keyframes am-flash {
+  0%,
+  35% {
+    background-color: var(--mantine-color-yellow-light);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.am-flash {
+  animation: am-flash 2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .am-flash {
+    animation: none;
+    background-color: var(--mantine-color-yellow-light);
+  }
+}
+
+/* Shown only because a sub-agent matched the filters. */
+.am-context > td {
+  opacity: 0.55;
+}
+
+.am-detail-row > td {
+  background-color: var(--mantine-color-default-hover);
+}
+
+/* Tabs scroll sideways on narrow screens instead of wrapping (U-11). */
+.am-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.am-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.am-tabs > * {
+  flex-shrink: 0;
+}
+
+/* Rendered instructions. */
+.am-markdown pre {
+  margin: 0;
+}
+
+.am-markdown table {
+  display: block;
+  overflow-x: auto;
+}
+
+.am-code-block {
+  position: relative;
+  margin-block: var(--mantine-spacing-md);
+}
+
+.am-code-block .am-code-copy {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+
+.am-code-block pre {
+  padding-right: 44px;
+}
