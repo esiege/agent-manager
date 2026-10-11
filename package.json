@@ -1,0 +1,24 @@
+{
+  "name": "agent-manager",
+  "private": true,
+  "description": "Agent Manager: one place to see every agent you run. See Docs/Spec-v2.md.",
+  "workspaces": [
+    "shared",
+    "api",
+    "web",
+    "reporter"
+  ],
+  "scripts": {
+    "build": "npm run build -w reporter && npm run build -w api && npm run build -w web",
+    "test": "vitest run",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "dev:api": "npm run start -w api",
+    "dev:web": "npm run dev -w web"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "esbuild": "^0.25.0",
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.0"
+  }
+}

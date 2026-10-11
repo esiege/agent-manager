@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.deploy/
+*.log
+.DS_Store
+
+# Azure Functions local settings hold secrets
+api/local.settings.json
+api/.local-store.json
+
+# Built by the reporter, served by the web app
+web/public/agentctl.js
