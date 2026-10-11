@@ -1,0 +1,17 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "AzureWebJobsStorage": "",
+    "DEV_OWNER": "you@example.com",
+    "LOCAL_STORE_PATH": ".local-store.json",
+    "OWNER_LOGINS": "",
+    "COSMOS_ENDPOINT": "",
+    "COSMOS_KEY": "",
+    "COSMOS_DATABASE": "agentmanager"
+  },
+  "Host": {
+    "CORS": "http://localhost:5173",
+    "CORSCredentials": true
+  }
+}

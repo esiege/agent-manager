@@ -1,0 +1,16 @@
+{
+  "name": "@agent-manager/api",
+  "private": true,
+  "description": "Agent Manager API: Azure Functions (Node, v4 programming model), bundled with esbuild.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "node build.mjs && func start",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@agent-manager/shared": "*",
+    "@azure/cosmos": "^4.4.1",
+    "@azure/functions": "^4.7.2"
+  }
+}
