@@ -19,7 +19,6 @@ import { HttpError, ok, publicOrigin, query, type Handler } from '../http';
 import type { LogFilter } from '../store/types';
 
 const MAX_EVENTS = 500;
-const MAX_MESSAGES = 20;
 const DEFAULT_LOG_LIMIT = 1000;
 const MAX_LOG_LIMIT = 5000;
 

@@ -51,7 +51,7 @@ function tick(seconds: number) {
 beforeEach(() => {
   resetAuthState();
   clock = new Date('2026-10-10T12:00:00Z');
-  ctx = { store: new MemoryStore(), now: () => clock, env: { OWNER_LOGINS: OWNER } };
+  ctx = { store: new MemoryStore(undefined, () => clock), now: () => clock, env: { OWNER_LOGINS: OWNER } };
 });
 
 describe('owner sign-in', () => {

@@ -2,7 +2,7 @@
 // Never used in Azure: see store/index.ts.
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import type { Agent, AgentEvent, AgentKind, LogEntry } from '@agent-manager/shared';
+import type { Agent, AgentEvent, AgentKind, AlertSubscription, LogEntry } from '@agent-manager/shared';
 import { RETENTION_DAYS, type LogFilter, type Store, type StoredKey } from './types';
 
 interface Snapshot {
@@ -10,6 +10,8 @@ interface Snapshot {
   agents: Agent[];
   events: AgentEvent[];
   logs: LogEntry[];
+  /** Missing in files saved before alerts existed. */
+  alerts?: AlertSubscription[];
 }
 
 export class MemoryStore implements Store {
@@ -17,6 +19,7 @@ export class MemoryStore implements Store {
   private agents = new Map<string, Agent>();
   private events: AgentEvent[] = [];
   private logs: LogEntry[] = [];
+  private alerts = new Map<string, AlertSubscription>();
 
   constructor(
     private readonly file?: string,
@@ -26,13 +29,13 @@ export class MemoryStore implements Store {
       const snap = JSON.parse(readFileSync(file, 'utf8')) as Snapshot;
       for (const k of snap.keys) this.keys.set(k.id, k);
       for (const a of snap.agents) this.agents.set(a.id, a);
+      for (const s of snap.alerts ?? []) this.alerts.set(s.id, s);
       this.events = snap.events;
       this.logs = snap.logs;
       this.prune();
     }
   }
 
-      for (const s of snap.alerts ?? []) this.alerts.set(s.id, s);
   private prune() {
     const cutoff = new Date(this.now().getTime() - RETENTION_DAYS * 86_400_000).toISOString();
     this.events = this.events.filter((e) => e.receivedAt >= cutoff);
@@ -46,6 +49,7 @@ export class MemoryStore implements Store {
       agents: [...this.agents.values()],
       events: this.events,
       logs: this.logs,
+      alerts: [...this.alerts.values()],
     };
     writeFileSync(this.file, JSON.stringify(snap));
   }
@@ -112,5 +116,20 @@ export class MemoryStore implements Store {
       )
       .sort((a, b) => b.at.localeCompare(a.at));
     return { logs: structuredClone(matched.slice(0, f.limit)), truncated: matched.length > f.limit };
+  }
+
+  async getAlert(id: string) {
+    return structuredClone(this.alerts.get(id) ?? null);
+  }
+  async listAlerts() {
+    return structuredClone([...this.alerts.values()]);
+  }
+  async putAlert(subscription: AlertSubscription) {
+    this.alerts.set(subscription.id, structuredClone(subscription));
+    this.save();
+  }
+  async deleteAlert(id: string) {
+    this.alerts.delete(id);
+    this.save();
   }
 }

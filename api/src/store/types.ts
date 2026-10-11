@@ -1,4 +1,4 @@
-import type { Agent, AgentEvent, AgentKind, LogEntry, LogLevel, MachineKey } from '@agent-manager/shared';
+import type { Agent, AgentEvent, AgentKind, AlertSubscription, LogEntry, LogLevel, MachineKey } from '@agent-manager/shared';
 
 /** A machine key as stored: the key's metadata plus a SHA-256 hash of the secret. */
 export interface StoredKey extends MachineKey {
@@ -39,4 +39,9 @@ export interface Store {
   addLogs(logs: LogEntry[]): Promise<void>;
   /** Newest first; `truncated` when more than `limit` matched. */
   queryLogs(filter: LogFilter): Promise<{ logs: LogEntry[]; truncated: boolean }>;
+
+  getAlert(id: string): Promise<AlertSubscription | null>;
+  listAlerts(): Promise<AlertSubscription[]>;
+  putAlert(subscription: AlertSubscription): Promise<void>;
+  deleteAlert(id: string): Promise<void>;
 }

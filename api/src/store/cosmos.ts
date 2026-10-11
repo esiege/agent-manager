@@ -1,10 +1,10 @@
 // Cosmos DB (NoSQL API, serverless) store used in Azure.
-// Containers: agents (/id), keys (/id), events (/agentId, 30-day TTL), logs (/source, 30-day TTL).
+// Containers: agents (/id), keys (/id), alerts (/id), events (/agentId, 30-day TTL), logs (/source, 30-day TTL).
 // infra/main.bicep creates the same containers; ensure() creates them too when they're missing.
 
 import { createHash } from 'node:crypto';
 import { CosmosClient, type Container, type SqlParameter } from '@azure/cosmos';
-import type { Agent, AgentEvent, AgentKind, LogEntry } from '@agent-manager/shared';
+import type { Agent, AgentEvent, AgentKind, AlertSubscription, LogEntry } from '@agent-manager/shared';
 import { RETENTION_DAYS, type LogFilter, type Store, type StoredKey } from './types';
 
 const TTL_SECONDS = RETENTION_DAYS * 86_400;
@@ -182,5 +182,22 @@ export class CosmosStore implements Store {
     const sql = `SELECT TOP @limit * FROM c${where.length ? ` WHERE ${where.join(' AND ')}` : ''} ORDER BY c.at DESC`;
     const rows = await this.query<LogEntry>('logs', sql, parameters, f.source || undefined);
     return { logs: rows.slice(0, f.limit), truncated: rows.length > f.limit };
+  }
+
+  getAlert(id: string) {
+    return this.read<AlertSubscription>('alerts', id, id);
+  }
+  listAlerts() {
+    return this.query<AlertSubscription>('alerts', 'SELECT * FROM c', []);
+  }
+  async putAlert(subscription: AlertSubscription) {
+    await (await this.c('alerts')).items.upsert(subscription);
+  }
+  async deleteAlert(id: string) {
+    try {
+      await (await this.c('alerts')).item(id, id).delete();
+    } catch (e) {
+      if ((e as { code?: number }).code !== 404) throw e; // already gone
+    }
   }
 }
