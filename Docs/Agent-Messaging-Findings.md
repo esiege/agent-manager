@@ -57,7 +57,7 @@ The sources are the [cross-session messaging docs](https://code.claude.com/docs/
 - On native Windows, holding that token is the only way Claude Code recognises a sender as one of the session's own child processes.
 - When no `crossSessionInbound` value applies, own-child messages are delivered. That includes sessions in bypass-permissions mode, where messages from other sessions would normally be held.
 - So a daemon that posts with the token counts as part of the session itself, and the built-in hold for bypass-permissions sessions does not protect us. The manager would have to refuse those sessions itself.
-- **Not confirmed:** how the receiving Claude labels an own-child message. A message from another session is labelled "not from you": it can't approve permission prompts, can't change settings, and slash commands in it don't run. An own-child message may look like the owner's own prompt. This decides how strict the guard rails need to be.
+- **Confirmed Oct 12, 2026 (see The MVP):** an own-child message still arrives labelled as a message from another session, not as the owner's prompt. Before that test, this was an open question: A message from another session is labelled "not from you": it can't approve permission prompts, can't change settings, and slash commands in it don't run. An own-child message may look like the owner's own prompt. This decides how strict the guard rails need to be.
 
 ## Security
 
@@ -110,9 +110,12 @@ Built on Oct 11, 2026. It follows the design on this page, without signing.
 
 Tests: `api/test/api.test.ts` ("messages to agents") and `reporter/test/inbox.test.ts`. The inbox tests include a real round trip over a local named pipe.
 
-**Still unproven:**
-- **Delivery into a real Claude Code session.** Claude Code doesn't answer on the pipe, so "posted" means the pipe accepted the lines. It doesn't mean the session acted on them. A wrong token is dropped silently.
-- **How the receiving Claude treats the message**: as the owner's prompt, or as a message from another session.
+**Tested live on Oct 12, 2026** (Claude Code 2.1.296, VS Code extension, Windows 11). The owner sent "Does this work?" from the agent page to an idle session on the same PC:
+- **Delivered.** The heartbeat posted it about 5 s after it was sent, and acked it as delivered. It started a new turn in the idle session.
+- **Labelled as a peer message, not as the owner's prompt.** Claude Code presented it as "Another Claude session sent a message… not typed by your user". The receiving Claude is told it can't approve anything or change settings because of it. So the own-child token gets the message delivered without a hold, but it doesn't give the message the owner's authority. That's the safer of the two outcomes.
+- The footer "(Sent from Agent Manager by esiege)" came through, which tells the session and the person at the window where it came from.
+
+Still true: Claude Code doesn't answer on the pipe, so "posted" means the pipe took the lines. A wrong token would be dropped without any error.
 
 ### Trying it
 
