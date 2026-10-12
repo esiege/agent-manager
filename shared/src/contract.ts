@@ -51,8 +51,13 @@ export const LIMITS = {
   resultChecks: 12,
   resultCheckLength: 300,
   messageLength: 8000,
+  /** A message the owner sends to an agent from the UI. */
+  agentMessageLength: 4000,
   linkLength: 2000,
 } as const;
+
+/** Owner calls that change something must carry this header, which another site can't add (CSRF). */
+export const OWNER_WRITE_HEADER = 'x-agent-manager-owner';
 
 /** An agent with no report or heartbeat for this long is Lost (R-02). */
 export const DEFAULT_LOST_AFTER_SECONDS = 180;
@@ -196,7 +201,7 @@ export interface AgentView extends Agent {
   runningChildren: number;
 }
 
-export type AgentEventType = 'report' | 'state' | 'action' | 'result' | 'turn';
+export type AgentEventType = 'report' | 'state' | 'action' | 'result' | 'turn' | 'message';
 
 export interface AgentEvent {
   id: string;
@@ -269,6 +274,64 @@ export interface MachineKey {
   revokedAt: string | null;
 }
 
+// ---- Messages to agents (Docs/Agent-Messaging-Findings.md) ----
+
+/** How long a message waits for its PC to collect it. A late prompt is worse than none. */
+export const MESSAGE_TTL_SECONDS = 600;
+
+/** "expired" is never stored: a pending message past its expiresAt is shown as expired. */
+export const MESSAGE_STATUSES = ['pending', 'delivered', 'failed', 'expired'] as const;
+export type MessageStatus = (typeof MESSAGE_STATUSES)[number];
+
+/**
+ * Text the owner sends to a Claude Code session from the UI. agentctl on the session's PC
+ * collects it and posts it into the session's inbox.
+ */
+export interface AgentMessage {
+  id: string;
+  agentId: string;
+  machine: string;
+  /** The machine key that reports the agent. Only that key can collect the message. */
+  keyName: string;
+  text: string;
+  /** The owner's login. */
+  from: string;
+  createdAt: string;
+  expiresAt: string;
+  status: MessageStatus;
+  /** When it was delivered or failed. */
+  doneAt: string | null;
+  /** Why it failed. */
+  reason: string | null;
+}
+
+/** POST /api/v1/messages, as the owner. */
+export interface SendMessageInput {
+  agentId: string;
+  text: string;
+}
+
+export interface SendMessageResponse {
+  message: AgentMessage;
+}
+
+/** POST /api/v1/inbox, with a machine key: the messages waiting for agents on one machine. */
+export interface InboxInput {
+  machine: string;
+}
+
+export interface InboxResponse {
+  /** Oldest first. */
+  messages: AgentMessage[];
+}
+
+/** POST /api/v1/inbox/ack, with a machine key: what happened to one message. */
+export interface MessageAckInput {
+  id: string;
+  machine: string;
+  status: 'delivered' | 'failed';
+  reason?: string;
+}
 
 // ---- Responses ----
 
@@ -302,6 +365,8 @@ export interface AgentDetailResponse {
   agent: AgentView;
   children: AgentView[];
   events: AgentEvent[];
+  /** Messages sent to it from the UI, newest first. Only Claude Code sessions take them. */
+  messages: AgentMessage[];
 }
 
 export interface LogsQuery {

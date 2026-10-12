@@ -27,7 +27,7 @@ Goals:
 Non-goals for v1:
 
 - Controlling agents: pause, stop, holds, locks. These need a gate on each PC that answers every tool call in under 50 ms and works offline, so they can't live in Azure. See Phases.
-- Talking to agents. VS Code, the terminal, Remote Control and OpenClaw's own channels already do that.
+- Talking to agents. VS Code, the terminal, Remote Control and OpenClaw's own channels already do that. Sending prompts from the UI was looked into and shelved; see [Agent-Messaging-Findings.md](Agent-Messaging-Findings.md).
 - More than one user. The manager has one owner.
 - Cost and token reporting.
 

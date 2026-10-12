@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AlertsResponse, AlertSubscription, CreateKeyResponse } from '@agent-manager/shared';
+import { OWNER_WRITE_HEADER, type AlertsResponse, type AlertSubscription, type CreateKeyResponse } from '@agent-manager/shared';
 import { headerText, resetAlertState } from '../src/alerts';
 import { resetAuthState } from '../src/auth';
 import { deleteAlert, listAlerts, saveAlert, sweepAlerts, testAlert } from '../src/handlers/alerts';
@@ -22,6 +22,7 @@ function call(handler: Handler, method: string, path: string, opts: { body?: unk
   if (opts.key) headers.set('x-agent-manager-key', opts.key);
   if (opts.owner) {
     headers.set('x-ms-client-principal', Buffer.from(JSON.stringify({ identityProvider: 'github', userDetails: opts.owner })).toString('base64'));
+    if (method === 'POST') headers.set(OWNER_WRITE_HEADER, '1'); // the UI adds it to owner changes
   }
   const req: Req = { method, url: `https://manager.test${path}`, headers, body: opts.body === undefined ? '' : JSON.stringify(opts.body) };
   return guarded(handler, () => {})(req, ctx);

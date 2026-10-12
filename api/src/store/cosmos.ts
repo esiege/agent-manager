@@ -1,20 +1,22 @@
 // Cosmos DB (NoSQL API, serverless) store used in Azure.
-// Containers: agents (/id), keys (/id), alerts (/id), events (/agentId, 30-day TTL), logs (/source, 30-day TTL).
+// Containers: agents (/id), keys (/id), alerts (/id), events (/agentId, 30-day TTL), logs (/source, 30-day TTL),
+// messages (/machine, 1-day TTL).
 // infra/main.bicep creates the same containers; ensure() creates them too when they're missing.
 
 import { createHash } from 'node:crypto';
 import { CosmosClient, type Container, type SqlParameter } from '@azure/cosmos';
-import type { Agent, AgentEvent, AgentKind, AlertSubscription, LogEntry } from '@agent-manager/shared';
-import { RETENTION_DAYS, type LogFilter, type Store, type StoredKey } from './types';
+import type { Agent, AgentEvent, AgentKind, AgentMessage, AlertSubscription, LogEntry } from '@agent-manager/shared';
+import { MESSAGE_RETENTION_SECONDS, RETENTION_DAYS, type LogFilter, type MessageFilter, type Store, type StoredKey } from './types';
 
 const TTL_SECONDS = RETENTION_DAYS * 86_400;
 
 const CONTAINERS = {
   agents: { partitionKey: '/id' },
   keys: { partitionKey: '/id' },
-  events: { partitionKey: '/agentId', defaultTtl: TTL_SECONDS },
   alerts: { partitionKey: '/id' },
+  events: { partitionKey: '/agentId', defaultTtl: TTL_SECONDS },
   logs: { partitionKey: '/source', defaultTtl: TTL_SECONDS },
+  messages: { partitionKey: '/machine', defaultTtl: MESSAGE_RETENTION_SECONDS },
 } as const;
 
 type Name = keyof typeof CONTAINERS;
@@ -199,5 +201,29 @@ export class CosmosStore implements Store {
     } catch (e) {
       if ((e as { code?: number }).code !== 404) throw e; // already gone
     }
+  }
+
+  getMessage(machine: string, id: string) {
+    return this.read<AgentMessage>('messages', id, machine);
+  }
+  async putMessage(message: AgentMessage) {
+    await (await this.c('messages')).items.upsert(message);
+  }
+  listMessages(machine: string, f: MessageFilter) {
+    const where = ['c.machine = @machine'];
+    const parameters: SqlParameter[] = [
+      { name: '@limit', value: f.limit },
+      { name: '@machine', value: machine },
+    ];
+    if (f.agentId) {
+      where.push('c.agentId = @agentId');
+      parameters.push({ name: '@agentId', value: f.agentId });
+    }
+    if (f.status) {
+      where.push('c.status = @status');
+      parameters.push({ name: '@status', value: f.status });
+    }
+    const sql = `SELECT TOP @limit * FROM c WHERE ${where.join(' AND ')} ORDER BY c.createdAt DESC`;
+    return this.query<AgentMessage>('messages', sql, parameters, machine);
   }
 }

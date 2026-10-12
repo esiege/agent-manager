@@ -26,6 +26,7 @@ import { DataTable, sortedRows } from '../components/DataTable';
 import { ExportMenu } from '../components/ExportMenu';
 import { JsonBlock } from '../components/JsonBlock';
 import { useLogsTable, LogDetail, LOG_CSV_COLUMNS, type LogFilterField } from '../components/LogsTable';
+import { SendMessage } from '../components/SendMessage';
 import { EmptyState, LoadError, TableSkeleton } from '../components/States';
 import { RelativeTime, UpdatedAgo } from '../components/Time';
 import { AGENTS_POLL_MS } from '../hooks/useAgentsFeed';
@@ -529,6 +530,11 @@ export function AgentDetailPage() {
       ) : (
         <>
           <AgentHeader agent={data.agent} flash={flashing.has(data.agent.id)} />
+          {data.agent.kind === 'claude-code' && !data.agent.parentId && (
+            <Section title="Message this session">
+              <SendMessage agent={data.agent} messages={data.messages ?? []} onSent={refresh} />
+            </Section>
+          )}
           {data.agent.result && (
             <Section title="Finished work">
               <Suspense fallback={<TableSkeleton rows={3} />}>

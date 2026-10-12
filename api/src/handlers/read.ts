@@ -5,6 +5,7 @@ import {
   RECENT_DAYS,
   effectiveState,
   isRunning,
+  messageStatus,
   type Agent,
   type AgentDetailResponse,
   type AgentsResponse,
@@ -19,6 +20,7 @@ import { HttpError, ok, publicOrigin, query, type Handler } from '../http';
 import type { LogFilter } from '../store/types';
 
 const MAX_EVENTS = 500;
+const MAX_MESSAGES = 20;
 const DEFAULT_LOG_LIMIT = 1000;
 const MAX_LOG_LIMIT = 5000;
 
@@ -69,11 +71,23 @@ export const agent: Handler = async (req, ctx) => {
 
   const found = await ctx.store.getAgent(id);
   if (!found) throw new HttpError(404, `No agent with id ${id}`);
-  const [children, events] = await Promise.all([ctx.store.listChildren(id), ctx.store.listEvents(id, MAX_EVENTS)]);
+  // Only Claude Code sessions take messages, so only they need the extra read.
+  const takesMessages = found.kind === 'claude-code' && !found.parentId;
+  const [children, events, messages] = await Promise.all([
+    ctx.store.listChildren(id),
+    ctx.store.listEvents(id, MAX_EVENTS),
+    takesMessages ? ctx.store.listMessages(found.machine, { agentId: id, limit: MAX_MESSAGES }) : Promise.resolve([]),
+  ]);
 
   const now = ctx.now();
   const [view, ...childViews] = toViews([found, ...children], now.getTime());
-  const body: AgentDetailResponse = { now: now.toISOString(), agent: view!, children: childViews, events };
+  const body: AgentDetailResponse = {
+    now: now.toISOString(),
+    agent: view!,
+    children: childViews,
+    events,
+    messages: messages.map((m) => ({ ...m, status: messageStatus(m, now.getTime()) })),
+  };
   return ok(body);
 };
 

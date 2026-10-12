@@ -2,8 +2,8 @@
 // Never used in Azure: see store/index.ts.
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import type { Agent, AgentEvent, AgentKind, AlertSubscription, LogEntry } from '@agent-manager/shared';
-import { RETENTION_DAYS, type LogFilter, type Store, type StoredKey } from './types';
+import type { Agent, AgentEvent, AgentKind, AgentMessage, AlertSubscription, LogEntry } from '@agent-manager/shared';
+import { MESSAGE_RETENTION_SECONDS, RETENTION_DAYS, type LogFilter, type MessageFilter, type Store, type StoredKey } from './types';
 
 interface Snapshot {
   keys: StoredKey[];
@@ -12,6 +12,8 @@ interface Snapshot {
   logs: LogEntry[];
   /** Missing in files saved before alerts existed. */
   alerts?: AlertSubscription[];
+  /** Missing in files saved before messages existed. */
+  messages?: AgentMessage[];
 }
 
 export class MemoryStore implements Store {
@@ -20,6 +22,7 @@ export class MemoryStore implements Store {
   private events: AgentEvent[] = [];
   private logs: LogEntry[] = [];
   private alerts = new Map<string, AlertSubscription>();
+  private messages: AgentMessage[] = [];
 
   constructor(
     private readonly file?: string,
@@ -32,6 +35,7 @@ export class MemoryStore implements Store {
       for (const s of snap.alerts ?? []) this.alerts.set(s.id, s);
       this.events = snap.events;
       this.logs = snap.logs;
+      this.messages = snap.messages ?? [];
       this.prune();
     }
   }
@@ -40,6 +44,8 @@ export class MemoryStore implements Store {
     const cutoff = new Date(this.now().getTime() - RETENTION_DAYS * 86_400_000).toISOString();
     this.events = this.events.filter((e) => e.receivedAt >= cutoff);
     this.logs = this.logs.filter((l) => l.receivedAt >= cutoff);
+    const messageCutoff = new Date(this.now().getTime() - MESSAGE_RETENTION_SECONDS * 1000).toISOString();
+    this.messages = this.messages.filter((m) => m.createdAt >= messageCutoff);
   }
 
   private save() {
@@ -50,6 +56,7 @@ export class MemoryStore implements Store {
       events: this.events,
       logs: this.logs,
       alerts: [...this.alerts.values()],
+      messages: this.messages,
     };
     writeFileSync(this.file, JSON.stringify(snap));
   }
@@ -131,5 +138,22 @@ export class MemoryStore implements Store {
   async deleteAlert(id: string) {
     this.alerts.delete(id);
     this.save();
+  }
+
+  async getMessage(machine: string, id: string) {
+    return structuredClone(this.messages.find((m) => m.machine === machine && m.id === id) ?? null);
+  }
+  async putMessage(message: AgentMessage) {
+    this.messages = [...this.messages.filter((m) => m.id !== message.id), structuredClone(message)];
+    this.prune();
+    this.save();
+  }
+  async listMessages(machine: string, f: MessageFilter) {
+    return structuredClone(
+      this.messages
+        .filter((m) => m.machine === machine && (!f.agentId || m.agentId === f.agentId) && (!f.status || m.status === f.status))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, f.limit),
+    );
   }
 }

@@ -3,6 +3,7 @@
 //   sessions/<sessionId>/sub-<agentId>.json one file per running sub-agent
 //   sessions/<sessionId>/send-<key>.json    coalescing state for one agent's activity reports
 //   sessions/<sessionId>/context.json       the story and task pinned by agentctl, and the current todo
+//   sessions/<sessionId>/inbox.json         the session's inbox address and token, only while messages are on
 
 import { existsSync, readdirSync, rmSync, statSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
@@ -43,6 +44,19 @@ export interface SessionContext {
   reported?: boolean;
 }
 
+/**
+ * Where to post a message into the session (inbox.ts). The token lets anything holding it act as
+ * the session itself, so it stays in this file on this PC and is never sent anywhere.
+ */
+export interface InboxRecord {
+  /** CLAUDE_CODE_MESSAGING_SOCKET: a named pipe on Windows. */
+  socket: string;
+  /** CLAUDE_CODE_MESSAGING_TOKEN. */
+  token: string;
+  /** The session's latest permission mode, from its hook events. */
+  permissionMode: string | null;
+}
+
 export interface SendState {
   lastSentAt: number;
   /** Marks the newest activity report waiting for the coalescing window to close. */
@@ -56,6 +70,7 @@ const dirOf = (sessionId: string) => join(paths.sessions(), safe(sessionId));
 const sessionFile = (sessionId: string) => join(dirOf(sessionId), 'session.json');
 const subFile = (sessionId: string, subId: string) => join(dirOf(sessionId), `sub-${safe(subId)}.json`);
 const contextFile = (sessionId: string) => join(dirOf(sessionId), 'context.json');
+const inboxFile = (sessionId: string) => join(dirOf(sessionId), 'inbox.json');
 const sendFile = (sessionId: string, agentId: string) =>
   join(dirOf(sessionId), `send-${safe(agentId.split('/').pop() ?? 'main')}.json`);
 
@@ -101,6 +116,23 @@ export function readContext(sessionId: string): SessionContext {
 
 export function writeContext(sessionId: string, context: SessionContext) {
   writeJsonFile(contextFile(sessionId), context);
+}
+
+export function readInbox(sessionId: string): InboxRecord | null {
+  return readJsonFile<InboxRecord>(inboxFile(sessionId));
+}
+
+export function writeInbox(sessionId: string, inbox: InboxRecord) {
+  writeJsonFile(inboxFile(sessionId), inbox);
+}
+
+export function removeInbox(sessionId: string) {
+  if (!existsSync(inboxFile(sessionId))) return;
+  try {
+    unlinkSync(inboxFile(sessionId));
+  } catch {
+    // Already gone.
+  }
 }
 
 export function readSendState(sessionId: string, agentId: string): SendState {

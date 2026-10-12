@@ -11,6 +11,11 @@ export interface Config {
   machine: string;
   /** Set to false in the config file to keep the person's prompts on this PC. */
   prompts?: boolean;
+  /**
+   * True after `agentctl install --allow-messages`: the owner can send messages to this PC's
+   * sessions from Agent Manager. Off unless turned on here; the server can't turn it on.
+   */
+  messages?: boolean;
 }
 
 export class ConfigError extends Error {}
@@ -26,5 +31,11 @@ export function loadConfig(): Config {
   const key = process.env.AGENT_MANAGER_KEY || saved.key || '';
   if (!url) throw new ConfigError(`No Agent Manager URL: run "agentctl install --url <url>" (config: ${paths.config()})`);
   if (!key) throw new ConfigError('No machine key: set AGENT_MANAGER_KEY or run "agentctl install"');
-  return { url, key, machine: saved.machine || defaultMachineName(), ...(saved.prompts === false ? { prompts: false } : {}) };
+  return {
+    url,
+    key,
+    machine: saved.machine || defaultMachineName(),
+    ...(saved.prompts === false ? { prompts: false } : {}),
+    ...(saved.messages === true ? { messages: true } : {}),
+  };
 }

@@ -1,6 +1,7 @@
 // The machine heartbeat (C-05). One background process per PC, started by the hooks when a
 // session starts, and gone again 10 minutes after the last session ends. Every 60 s it checks
-// which Claude Code processes are still alive and tells Agent Manager.
+// which Claude Code processes are still alive and tells Agent Manager. With messages on, it also
+// collects the owner's messages every 5 s and posts them into their sessions (inbox.ts).
 
 import { spawn } from 'node:child_process';
 import { closeSync, openSync, unlinkSync, writeSync } from 'node:fs';
@@ -8,12 +9,15 @@ import { INSTRUCTIONS_VERSION, type HeartbeatResponse, type ReportInput } from '
 import { loadConfig, type Config } from './config';
 import { logLine, readJsonFile, writeJsonFile } from './files';
 import { subagentAgentId } from './hook';
+import { checkInbox } from './inbox';
 import { paths } from './paths';
 import { isAlive } from './proc';
 import { post } from './send';
 import { listSessions, listSubagents, pruneSessions, removeSubagent, writeSession, type SessionRecord } from './sessions';
 
 const BEAT_MS = 60_000;
+/** How often it asks for messages from the owner, when they're on (inbox.ts). */
+const INBOX_MS = 5_000;
 const EXIT_AFTER_IDLE_MS = 10 * 60_000;
 const STALE_BEAT_MS = 3 * 60_000;
 
@@ -127,6 +131,24 @@ export async function runDaemon(): Promise<void> {
       logLine('heartbeat stopping: no live sessions for 10 minutes');
       return;
     }
-    await new Promise((r) => setTimeout(r, BEAT_MS));
+    await untilNextBeat();
+  }
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, Math.max(0, ms)));
+
+/** Waits for the next beat. With messages on, it checks for them every few seconds meanwhile. */
+async function untilNextBeat() {
+  const next = Date.now() + BEAT_MS;
+  while (Date.now() < next) {
+    let config: Config | null = null;
+    try {
+      config = loadConfig();
+    } catch {
+      // The beat logs a broken config.
+    }
+    if (!config?.messages) return sleep(next - Date.now());
+    await sleep(Math.min(INBOX_MS, next - Date.now()));
+    await checkInbox(config).catch((e: Error) => logLine(`inbox: ${e.message}`));
   }
 }

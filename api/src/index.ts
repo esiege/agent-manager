@@ -8,6 +8,7 @@ import { heartbeat, postLogs, report } from './handlers/ingest';
 import { agent, agents, getLogs, me } from './handlers/read';
 import { createKey, listKeys, revokeKey } from './handlers/keys';
 import { deleteAlert, listAlerts, saveAlert, sweepAlerts, testAlert } from './handlers/alerts';
+import { ackMessage, inbox, sendMessage } from './handlers/messages';
 
 function register(name: string, method: 'GET' | 'POST', route: string, handler: Handler) {
   app.http(name, {
@@ -55,3 +56,7 @@ register('saveAlert', 'POST', 'v1/alerts', saveAlert);
 register('deleteAlert', 'POST', 'v1/alerts/delete', deleteAlert);
 register('testAlert', 'POST', 'v1/alerts/test', testAlert);
 register('sweepAlerts', 'POST', 'v1/alerts/sweep', sweepAlerts);
+
+register('sendMessage', 'POST', 'v1/messages', sendMessage);
+register('inbox', 'POST', 'v1/inbox', inbox);
+register('ackMessage', 'POST', 'v1/inbox/ack', ackMessage);

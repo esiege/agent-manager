@@ -2,6 +2,9 @@
 
 import {
   API_BASE,
+  OWNER_WRITE_HEADER,
+  type SendMessageInput,
+  type SendMessageResponse,
   type AgentDetailResponse,
   type AgentsResponse,
   type AlertsResponse,
@@ -60,7 +63,11 @@ async function request<T>(path: string, { method = 'GET', body, signal }: Reques
       credentials: 'same-origin',
       // A redirect here means the sign-in expired and the site is sending us to the login page.
       redirect: 'manual',
-      headers: body === undefined ? { Accept: 'application/json' } : { Accept: 'application/json', 'Content-Type': 'application/json' },
+      // Every change carries OWNER_WRITE_HEADER, which the API requires so other sites can't post here.
+      headers:
+        method === 'GET'
+          ? { Accept: 'application/json' }
+          : { Accept: 'application/json', 'Content-Type': 'application/json', [OWNER_WRITE_HEADER]: '1' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch (e) {
@@ -123,6 +130,7 @@ export const api = {
     request<{ subscription: AlertSubscription }>('/alerts', { method: 'POST', body: input }),
   deleteAlert: (id: string) => request<{ ok: true }>('/alerts/delete', { method: 'POST', body: { id } }),
   testAlert: (id: string) => request<{ subscription: AlertSubscription }>('/alerts/test', { method: 'POST', body: { id } }),
+  sendMessage: (input: SendMessageInput) => request<SendMessageResponse>('/messages', { method: 'POST', body: input }),
 };
 
 /** Who is signed in, from the site's built-in auth. Used to name a non-owner account. */

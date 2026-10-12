@@ -1,4 +1,4 @@
-import type { Agent, AgentEvent, AgentKind, AlertSubscription, LogEntry, LogLevel, MachineKey } from '@agent-manager/shared';
+import type { Agent, AgentEvent, AgentKind, AgentMessage, AlertSubscription, LogEntry, LogLevel, MachineKey, MessageStatus } from '@agent-manager/shared';
 
 /** A machine key as stored: the key's metadata plus a SHA-256 hash of the secret. */
 export interface StoredKey extends MachineKey {
@@ -17,8 +17,17 @@ export interface LogFilter {
   limit: number;
 }
 
+export interface MessageFilter {
+  agentId?: string;
+  status?: MessageStatus;
+  limit: number;
+}
+
 /** Events and logs older than this are dropped (Non-functional: Retention). */
 export const RETENTION_DAYS = 30;
+
+/** Messages to agents are kept a day: long enough to see what happened to them, no longer. */
+export const MESSAGE_RETENTION_SECONDS = 86_400;
 
 export interface Store {
   getKey(id: string): Promise<StoredKey | null>;
@@ -44,4 +53,9 @@ export interface Store {
   listAlerts(): Promise<AlertSubscription[]>;
   putAlert(subscription: AlertSubscription): Promise<void>;
   deleteAlert(id: string): Promise<void>;
+
+  getMessage(machine: string, id: string): Promise<AgentMessage | null>;
+  putMessage(message: AgentMessage): Promise<void>;
+  /** The messages for agents on one machine, newest first. */
+  listMessages(machine: string, filter: MessageFilter): Promise<AgentMessage[]>;
 }

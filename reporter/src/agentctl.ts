@@ -10,6 +10,7 @@ import { ensureDaemon, runDaemon } from './daemon';
 import { logLine, readJsonFile, writeJsonFile } from './files';
 import { commitInfo, findRepoRoot, hasUncommittedChanges, projectName, readBranch, readHead } from './git';
 import { planHook, type HookInput, type PlannedReport } from './hook';
+import { removeAllInboxes, syncInbox } from './inbox';
 import { paths } from './paths';
 import { ancestors, isAlive } from './proc';
 import { post, SendError } from './send';
@@ -18,6 +19,7 @@ import {
   listSessions,
   listSubagents,
   readContext,
+  readInbox,
   readSendState,
   readSession,
   removeSubagent,
@@ -36,6 +38,8 @@ const HELP = `agentctl: reports the Claude Code sessions on this PC to Agent Man
       Saves the URL and machine key, checks them, and adds the reporting hooks to
       ~/.claude/settings.json (backing it up first). The key defaults to AGENT_MANAGER_KEY.
       Run again after downloading a new agentctl.js to update: the URL and key are kept.
+      --allow-messages lets you send messages to this PC's sessions from their page in Agent
+      Manager; --no-messages turns that off again. Off by default; the choice is kept on update.
   agentctl uninstall          Removes the hooks (the config stays).
   agentctl status "<text>" [--state working|waiting|idle]
       Sets this session's one-line activity. Run it from a Claude Code shell.
@@ -59,7 +63,7 @@ class UsageError extends Error {}
 class NotFoundError extends Error {}
 
 /** Flags that take no value. */
-const SWITCHES = new Set(['clear', 'uncommitted']);
+const SWITCHES = new Set(['clear', 'uncommitted', 'allow-messages', 'no-messages']);
 
 /** Flags that can be given more than once; every value is kept in `lists`. */
 const REPEATED = new Set(['check']);
@@ -159,6 +163,7 @@ async function hookCommand() {
   if (plan.context) writeContext(input.session_id, plan.context);
   if (plan.subagentStart) addSubagent(input.session_id, plan.subagentStart);
   if (plan.subagentStop) removeSubagent(input.session_id, plan.subagentStop);
+  syncInbox(config, input.session_id, input.hook_event_name, input.permission_mode);
   if (input.hook_event_name === 'SessionStart' && process.env.CLAUDE_ENV_FILE) {
     // Lets `agentctl status` find its session quickly in bash; it falls back to the process tree.
     appendFileSync(process.env.CLAUDE_ENV_FILE, `export AGENT_MANAGER_SESSION=${input.session_id}\n`);
@@ -330,7 +335,15 @@ async function installCommand(flags: Record<string, string>) {
   const machine = flags.machine || saved?.machine || defaultMachineName();
   if (!/^https?:\/\//.test(url)) throw new UsageError('Usage: agentctl install --url https://<your Agent Manager> [--key <key>] [--machine <name>]');
   if (!key) throw new UsageError('No machine key: make one on the Settings tab, then set AGENT_MANAGER_KEY or pass --key');
-  const config: Config = { url, key, machine, ...(saved?.prompts === false ? { prompts: false } : {}) };
+  if ('allow-messages' in flags && 'no-messages' in flags) throw new UsageError('Pass --allow-messages or --no-messages, not both');
+  const messages = 'allow-messages' in flags ? true : 'no-messages' in flags ? false : saved?.messages === true;
+  const config: Config = {
+    url,
+    key,
+    machine,
+    ...(saved?.prompts === false ? { prompts: false } : {}),
+    ...(messages ? { messages: true } : {}),
+  };
 
   // Check the URL and key before touching anything.
   const check = await post<ReportResponse>(config, '/report', {
@@ -344,6 +357,7 @@ async function installCommand(flags: Record<string, string>) {
   mkdirSync(dirname(paths.script()), { recursive: true });
   if (resolve(scriptPath()) !== resolve(paths.script())) copyFileSync(scriptPath(), paths.script());
   writeJsonFile(paths.config(), config);
+  if (!messages) removeAllInboxes();
 
   const backup = writeSettings(withAgentctlHooks(readSettings(), process.execPath, paths.script()));
   // A heartbeat still running the old agentctl stops; the next hook event starts the new one.
@@ -353,6 +367,7 @@ async function installCommand(flags: Record<string, string>) {
   Config:    ${paths.config()}
   agentctl:  ${paths.script()}
   Hooks:     ${paths.claudeSettings()}${backup ? `\n  Backup:    ${backup}` : ''}
+  Messages:  ${messages ? 'on: you can send messages to these sessions from Agent Manager' : 'off (--allow-messages turns them on)'}
 New Claude Code sessions on this PC now appear at ${url}/agents within a few seconds.
 Sessions that are already open start reporting once Claude Code reloads its settings.`);
 }
@@ -367,6 +382,7 @@ function uninstallCommand() {
   const backup = writeSettings(cleaned);
   const d = readJsonFile<{ pid: number }>(paths.daemon());
   if (d && isAlive(d.pid)) process.kill(d.pid);
+  removeAllInboxes();
   console.log(`Removed the agentctl hooks from ${paths.claudeSettings()}${backup ? ` (backup: ${backup})` : ''}.`);
 }
 
@@ -407,6 +423,12 @@ async function doctorCommand() {
   lines.push(`Heartbeat:  ${d && isAlive(d.pid) ? `running (pid ${d.pid}, last beat ${d.beatAt})` : 'not running (starts with the next session)'}`);
   const live = listSessions().filter((s) => !s.endedAt);
   lines.push(`Sessions:   ${live.length} open${live.map((s) => `\n            ${s.name} (pid ${s.pid ?? '?'}${s.pid && !isAlive(s.pid) ? ', gone' : ''})`).join('')}`);
+  if (config?.messages) {
+    const ready = live.filter((s) => readInbox(s.sessionId)).length;
+    lines.push(`Messages:   on; ${ready} of ${live.length} open sessions can take one (the rest after their next hook event)`);
+  } else {
+    lines.push('Messages:   off (agentctl install --allow-messages turns them on)');
+  }
   if (config) {
     try {
       await post(config, '/report', { agentId: `${config.machine}/agentctl`, kind: 'other', machine: config.machine, test: true });

@@ -4,13 +4,16 @@ import type {
   AgentsResponse,
   CreateKeyResponse,
   HeartbeatResponse,
+  InboxResponse,
   LogsQueryResponse,
   ReportResponse,
+  SendMessageResponse,
 } from '@agent-manager/shared';
-import { unfinishedReason } from '@agent-manager/shared';
+import { OWNER_WRITE_HEADER, unfinishedReason } from '@agent-manager/shared';
 import { resetAuthState } from '../src/auth';
 import { heartbeat, postLogs, report } from '../src/handlers/ingest';
 import { createKey, listKeys, revokeKey } from '../src/handlers/keys';
+import { ackMessage, inbox, sendMessage } from '../src/handlers/messages';
 import { agent, agents, getLogs, me } from '../src/handlers/read';
 import { guarded, type Ctx, type Handler, type Req } from '../src/http';
 import { MemoryStore } from '../src/store/memory';
@@ -22,10 +25,17 @@ function principal(login: string) {
   return Buffer.from(JSON.stringify({ identityProvider: 'aad', userDetails: login })).toString('base64');
 }
 
-function call(handler: Handler, method: string, path: string, opts: { body?: unknown; key?: string; owner?: string } = {}) {
+function call(
+  handler: Handler,
+  method: string,
+  path: string,
+  opts: { body?: unknown; key?: string; owner?: string; writeHeader?: boolean } = {},
+) {
   const headers = new Headers({ host: 'manager.test', 'x-forwarded-proto': 'https' });
   if (opts.key) headers.set('x-agent-manager-key', opts.key);
   if (opts.owner) headers.set('x-ms-client-principal', principal(opts.owner));
+  // The UI adds this to every owner POST; tests leave it out to play another site.
+  if (opts.owner && method === 'POST' && opts.writeHeader !== false) headers.set(OWNER_WRITE_HEADER, '1');
   const req: Req = {
     method,
     url: `https://manager.test${path}`,
@@ -285,6 +295,94 @@ describe('logs', () => {
 
     const bad = await call(getLogs, 'GET', '/api/v1/logs?level=loud', asOwner);
     expect(bad).toEqual({ status: 400, body: { error: 'level must be one or more of debug, info, warn, error' } });
+  });
+});
+
+describe('messages to agents', () => {
+  const SESSION = 'pc/claude/s1';
+  let key: string;
+  beforeEach(async () => {
+    key = await makeKey('pc-studio');
+    await call(report, 'POST', '/api/v1/report', {
+      key,
+      body: { agentId: SESSION, kind: 'claude-code', machine: 'pc', state: 'idle', details: { permissionMode: 'default' } },
+    });
+  });
+
+  const send = (body: Record<string, unknown>, opts: { writeHeader?: boolean } = {}) =>
+    call(sendMessage, 'POST', '/api/v1/messages', { ...asOwner, ...opts, body: { agentId: SESSION, text: 'Run the tests', ...body } });
+  const collect = (withKey = key) =>
+    call(inbox, 'POST', '/api/v1/inbox', { key: withKey, body: { machine: 'pc' } }).then((r) => r.body as InboxResponse);
+  const detail = async () =>
+    (await call(agent, 'GET', `/api/v1/agent?id=${encodeURIComponent(SESSION)}`, asOwner)).body as AgentDetailResponse;
+
+  it('refuses owner changes without the site header, so another site cannot post them', async () => {
+    const res = await send({}, { writeHeader: false });
+    expect(res.status).toBe(403);
+    const keyRes = await call(createKey, 'POST', '/api/v1/keys', { ...asOwner, writeHeader: false, body: { name: 'x' } });
+    expect(keyRes.status).toBe(403);
+  });
+
+  it('queues a message for the key that reports the session, and records it in the timeline', async () => {
+    const res = await send({});
+    expect(res.status).toBe(201);
+    const { message } = res.body as SendMessageResponse;
+    expect(message).toMatchObject({ agentId: SESSION, machine: 'pc', keyName: 'pc-studio', from: OWNER, status: 'pending' });
+    expect(message.expiresAt).toBe('2026-10-10T12:10:00.000Z');
+
+    expect((await collect()).messages.map((m) => m.text)).toEqual(['Run the tests']);
+    const d = await detail();
+    expect(d.messages.map((m) => m.status)).toEqual(['pending']);
+    expect(d.events).toContainEqual(expect.objectContaining({ type: 'message', activity: `Message sent by ${OWNER}: Run the tests` }));
+  });
+
+  it('keeps messages from other machine keys', async () => {
+    await send({});
+    const other = await makeKey('pc-laptop');
+    expect((await collect(other)).messages).toEqual([]);
+    const { message } = (await send({})).body as SendMessageResponse;
+    const ack = await call(ackMessage, 'POST', '/api/v1/inbox/ack', { key: other, body: { id: message.id, machine: 'pc', status: 'delivered' } });
+    expect(ack.status).toBe(404);
+  });
+
+  it('marks a message delivered or failed once, and stops offering it', async () => {
+    const { message } = (await send({})).body as SendMessageResponse;
+    const ack = (status: string, reason?: string) =>
+      call(ackMessage, 'POST', '/api/v1/inbox/ack', { key, body: { id: message.id, machine: 'pc', status, reason } });
+    expect((await ack('delivered')).status).toBe(200);
+    expect((await ack('failed', 'late')).body).toMatchObject({ message: { status: 'delivered', reason: null } });
+    expect((await collect()).messages).toEqual([]);
+    const d = await detail();
+    expect(d.messages[0]).toMatchObject({ status: 'delivered', doneAt: '2026-10-10T12:00:00.000Z' });
+    expect(d.events).toContainEqual(expect.objectContaining({ type: 'message', activity: "Message posted to the session's inbox" }));
+  });
+
+  it('expires a message nobody collects within 10 minutes', async () => {
+    await send({});
+    tick(601);
+    // Keep the session fresh so only the message is late.
+    await call(report, 'POST', '/api/v1/report', { key, body: { agentId: SESSION, kind: 'claude-code', machine: 'pc', state: 'idle' } });
+    expect((await collect()).messages).toEqual([]);
+    expect((await detail()).messages[0]!.status).toBe('expired');
+  });
+
+  it('only goes to running, top-level Claude Code sessions that ask for permission', async () => {
+    await call(report, 'POST', '/api/v1/report', {
+      key,
+      body: { agentId: `${SESSION}/sub`, kind: 'claude-code', machine: 'pc', parentId: SESSION },
+    });
+    expect((await send({ agentId: `${SESSION}/sub` })).status).toBe(409);
+    expect((await send({ agentId: 'nobody' })).status).toBe(404);
+    expect((await send({ text: '   ' })).status).toBe(400);
+
+    await call(report, 'POST', '/api/v1/report', {
+      key,
+      body: { agentId: SESSION, kind: 'claude-code', machine: 'pc', details: { permissionMode: 'bypassPermissions' } },
+    });
+    expect((await send({})).body).toEqual({ error: "The session skips permission prompts, so it doesn't take messages from Agent Manager" });
+
+    await call(report, 'POST', '/api/v1/report', { key, body: { agentId: SESSION, kind: 'claude-code', machine: 'pc', state: 'stopped' } });
+    expect((await send({})).body).toEqual({ error: 'The session is stopped, so nothing would deliver the message' });
   });
 });
 

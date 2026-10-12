@@ -1,4 +1,4 @@
-import { DEFAULT_LOST_AFTER_SECONDS, type Agent, type AgentState, type AgentTurn } from './contract';
+import { DEFAULT_LOST_AFTER_SECONDS, type Agent, type AgentMessage, type AgentState, type AgentTurn, type MessageStatus } from './contract';
 
 /** An agent's state as shown: what it last reported, or Lost once it has been silent too long. */
 export function effectiveState(agent: Pick<Agent, 'state' | 'lastSeen' | 'lostAfterSeconds'>, now: number): AgentState {
@@ -6,6 +6,11 @@ export function effectiveState(agent: Pick<Agent, 'state' | 'lastSeen' | 'lostAf
   const silentMs = now - Date.parse(agent.lastSeen);
   const limitMs = (agent.lostAfterSeconds || DEFAULT_LOST_AFTER_SECONDS) * 1000;
   return silentMs > limitMs ? 'lost' : agent.state;
+}
+
+/** A message's status as shown: a pending message past its expiry is expired. */
+export function messageStatus(message: Pick<AgentMessage, 'status' | 'expiresAt'>, now: number): MessageStatus {
+  return message.status === 'pending' && Date.parse(message.expiresAt) <= now ? 'expired' : message.status;
 }
 
 /** States that mean the agent is still going. */

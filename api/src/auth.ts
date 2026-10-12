@@ -1,7 +1,7 @@
 // Two kinds of caller: the owner, signed in through Static Web Apps, and agents, using machine keys.
 
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import type { MachineKey } from '@agent-manager/shared';
+import { OWNER_WRITE_HEADER, type MachineKey } from '@agent-manager/shared';
 import { HttpError, type Ctx, type Req } from './http';
 import { inAzure } from './store';
 import type { StoredKey } from './store/types';
@@ -44,6 +44,19 @@ export function requireOwner(req: Req, ctx: Ctx): Owner {
   if (owners.length === 0) throw new HttpError(403, 'OWNER_LOGINS is not set on the server, so nobody can sign in');
   if (!owners.includes(login.toLowerCase())) throw new HttpError(403, `Signed in as ${login}, which isn't the owner account`);
   return { login, provider: principal.identityProvider ?? 'unknown' };
+}
+
+/**
+ * The owner, for calls that change something. These also need the OWNER_WRITE_HEADER: a page on
+ * another site can make the owner's browser POST here with the sign-in cookie, but it can't add
+ * a custom header without a CORS preflight, which this site never allows.
+ */
+export function requireOwnerWrite(req: Req, ctx: Ctx): Owner {
+  const owner = requireOwner(req, ctx);
+  if (req.headers.get(OWNER_WRITE_HEADER) !== '1') {
+    throw new HttpError(403, `Changes must come from the Agent Manager site (the ${OWNER_WRITE_HEADER} header is missing)`);
+  }
+  return owner;
 }
 
 // ---- Machine keys ----

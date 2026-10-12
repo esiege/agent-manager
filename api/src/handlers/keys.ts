@@ -1,7 +1,7 @@
 // Machine keys, managed by the signed-in owner on the Settings tab (U-08).
 
 import type { CreateKeyResponse, KeysResponse, MachineKey } from '@agent-manager/shared';
-import { forgetKey, hashSecret, newKeySecret, publicKey, requireOwner } from '../auth';
+import { forgetKey, hashSecret, newKeySecret, publicKey, requireOwner, requireOwnerWrite } from '../auth';
 import { HttpError, ok, readJson, type Handler } from '../http';
 
 const MAX_BODY = 4096;
@@ -20,7 +20,7 @@ export const listKeys: Handler = async (req, ctx) => {
 };
 
 export const createKey: Handler = async (req, ctx) => {
-  requireOwner(req, ctx);
+  requireOwnerWrite(req, ctx);
   const name = stringField(readJson(req, MAX_BODY), 'name');
   if (name.length > 60) throw new HttpError(400, 'name must be at most 60 characters');
 
@@ -37,7 +37,7 @@ export const createKey: Handler = async (req, ctx) => {
 };
 
 export const revokeKey: Handler = async (req, ctx) => {
-  requireOwner(req, ctx);
+  requireOwnerWrite(req, ctx);
   const id = stringField(readJson(req, MAX_BODY), 'id');
   const key = await ctx.store.getKey(id);
   if (!key) throw new HttpError(404, `No key with id ${id}`);

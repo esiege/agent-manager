@@ -4,7 +4,7 @@
 import { randomUUID } from 'node:crypto';
 import { validateAlertSubscription, type AlertsResponse, type AlertSubscription } from '@agent-manager/shared';
 import { deliver, sweepLost } from '../alerts';
-import { requireKey, requireOwner } from '../auth';
+import { requireKey, requireOwner, requireOwnerWrite } from '../auth';
 import { HttpError, fail, ok, publicOrigin, readJson, type Ctx, type Handler } from '../http';
 
 const MAX_BODY = 8192;
@@ -31,7 +31,7 @@ export const listAlerts: Handler = async (req, ctx) => {
 
 /** Creates a subscription (no id) or updates one. */
 export const saveAlert: Handler = async (req, ctx) => {
-  requireOwner(req, ctx);
+  requireOwnerWrite(req, ctx);
   const result = validateAlertSubscription(readJson(req, MAX_BODY));
   if (!result.ok) return fail(400, result.error);
   const input = result.value;
@@ -58,7 +58,7 @@ export const saveAlert: Handler = async (req, ctx) => {
 };
 
 export const deleteAlert: Handler = async (req, ctx) => {
-  requireOwner(req, ctx);
+  requireOwnerWrite(req, ctx);
   const sub = await mustGet(ctx, idField(readJson(req, MAX_BODY)));
   await ctx.store.deleteAlert(sub.id);
   return ok({ ok: true });
@@ -66,7 +66,7 @@ export const deleteAlert: Handler = async (req, ctx) => {
 
 /** Sends a test message, whether or not the subscription is enabled. */
 export const testAlert: Handler = async (req, ctx) => {
-  requireOwner(req, ctx);
+  requireOwnerWrite(req, ctx);
   const sub = await mustGet(ctx, idField(readJson(req, MAX_BODY)));
   const error = await deliver(ctx, sub, {
     event: 'test',
