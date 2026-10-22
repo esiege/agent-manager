@@ -219,6 +219,12 @@ export function planHook(
 
   switch (event) {
     case 'SessionStart': {
+      if (input.source === 'compact') {
+        // Auto-compaction happens mid-request in long runs (such as /loop): the session carries
+        // on, so no state. Idle here would mark its request as cut off.
+        plan.reports.push({ report: { ...base(), activity: 'Compacted its conversation', ...what }, coalesce: false });
+        break;
+      }
       const source = input.source && input.source !== 'startup' ? ` (${input.source})` : '';
       plan.reports.push(sessionReport('idle', `Session started${source}`));
       break;

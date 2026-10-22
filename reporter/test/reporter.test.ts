@@ -34,6 +34,14 @@ function started(): SessionRecord {
 }
 
 describe('planHook', () => {
+  it('leaves the state alone when the session compacts mid-request', () => {
+    const plan = planHook(ev('SessionStart', { source: 'compact' }), started(), [], ctx);
+    expect(plan.reports).toHaveLength(1);
+    expect(plan.reports[0]!.report.activity).toBe('Compacted its conversation');
+    expect(plan.reports[0]!.report).not.toHaveProperty('state');
+    expect(plan.reports[0]!.report).not.toHaveProperty('turn');
+  });
+
   it('records a new session and reports it with its details', () => {
     const plan = planHook(ev('SessionStart', { source: 'startup', model: 'claude-opus-5-5', permission_mode: 'default' }), null, [], ctx);
     expect(plan.session).toMatchObject({ agentId: 'pc-studio/claude/4b1e9c2a-1111', name: 'musik-4b1e', pid: 4242 });
