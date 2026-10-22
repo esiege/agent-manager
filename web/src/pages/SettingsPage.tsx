@@ -6,6 +6,7 @@ import { IconAlertTriangle, IconKey } from '@tabler/icons-react';
 import { createColumnHelper, getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table';
 import { useMemo, useState, type FormEvent } from 'react';
 import { AlertsSettings } from '../components/AlertsSettings';
+import { HiddenAgents } from '../components/HiddenAgents';
 import { CopyField } from '../components/Copy';
 import { DataTable } from '../components/DataTable';
 import { PageHeader } from '../components/PageHeader';
@@ -253,6 +254,8 @@ export function SettingsPage() {
       )}
 
       <AlertsSettings />
+
+      <HiddenAgents />
 
       <SecretModal created={created} onClose={() => setCreated(null)} />
       <RevokeModal target={revoking} onClose={() => setRevoking(null)} onRevoked={refresh} />

@@ -106,7 +106,7 @@ export function AgentTile({ group, flashing, onHide }: AgentTileProps) {
       </Link>
       {onHide && (
         // Beside the link, not in it: a button inside a link isn't allowed.
-        <Tooltip label="Hide (a new session shows again)" withArrow>
+        <Tooltip label="Hide. Settings can show it again." withArrow>
           <ActionIcon className="am-tile-hide" variant="subtle" color="gray" size="sm" aria-label={`Hide ${group.name}`} onClick={onHide}>
             <IconEyeOff size={16} />
           </ActionIcon>
