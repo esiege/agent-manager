@@ -100,6 +100,7 @@ export const report: Handler = async (req, ctx) => {
     result: pick(workResult ?? undefined, existing?.result ?? null),
     // Which request a "connection lost" alert went out for (alerts.ts), so it isn't sent twice.
     lostAlertFor: existing?.lostAlertFor ?? null,
+    hiddenAt: existing?.hiddenAt ?? null,
     link: pick(input.link, existing?.link ?? null),
     details: { ...existing?.details, ...input.details },
     lostAfterSeconds: input.lostAfterSeconds ?? existing?.lostAfterSeconds ?? DEFAULT_LOST_AFTER_SECONDS,

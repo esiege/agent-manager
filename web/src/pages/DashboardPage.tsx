@@ -3,11 +3,13 @@
 import { unfinishedReason, type AgentView } from '@agent-manager/shared';
 import { Anchor, Group, Text } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { AgentTile } from '../components/AgentTile';
 import { EmptyState, LoadError, TableSkeleton } from '../components/States';
 import { UpdatedAgo } from '../components/Time';
 import { useAgentsFeed } from '../hooks/useAgentsFeed';
+import { api, toRequestError } from '../lib/api';
 import { groupAgents, type AgentGroup } from '../lib/agents';
 import { fitGrid } from '../lib/fitGrid';
 
@@ -62,7 +64,13 @@ function countsLine(groups: AgentGroup[]): string {
   return parts.filter(Boolean).join(' · ');
 }
 
-function TileGrid({ groups, flashing }: { groups: AgentGroup[]; flashing: ReadonlySet<string> }) {
+interface TileGridProps {
+  groups: AgentGroup[];
+  flashing: ReadonlySet<string>;
+  onHide: (g: AgentGroup) => void;
+}
+
+function TileGrid({ groups, flashing, onHide }: TileGridProps) {
   const { ref, width, height } = useElementSize<HTMLDivElement>();
   const gap = width < 600 ? 8 : 12;
   const fit = fitGrid(groups.length, width, height, gap, width < 600 ? MIN_TILE_PHONE : MIN_TILE);
@@ -82,7 +90,12 @@ function TileGrid({ groups, flashing }: { groups: AgentGroup[]; flashing: Readon
           }}
         >
           {groups.map((g) => (
-            <AgentTile key={g.key} group={g} flashing={g.instances.some((i) => flashing.has(i.id))} />
+            <AgentTile
+              key={g.key}
+              group={g}
+              flashing={g.instances.some((i) => flashing.has(i.id))}
+              onHide={() => onHide(g)}
+            />
           ))}
         </div>
       )}
@@ -92,7 +105,19 @@ function TileGrid({ groups, flashing }: { groups: AgentGroup[]; flashing: Readon
 
 export function DashboardPage() {
   const { data, error, updatedAt, refresh, flashing } = useAgentsFeed();
+  const [hideError, setHideError] = useState<string | null>(null);
   const groups = data ? dashboardGroups(data.agents, Date.parse(data.now)) : [];
+
+  // Hides the sessions it has now; a later session in the same project shows up as usual.
+  const hide = async (g: AgentGroup) => {
+    setHideError(null);
+    try {
+      await api.hideAgents(g.instances.map((i) => i.id), true);
+      refresh();
+    } catch (e) {
+      setHideError(`Couldn't hide ${g.name}: ${toRequestError(e).message}`);
+    }
+  };
 
   return (
     <div className="am-dash">
@@ -103,6 +128,11 @@ export function DashboardPage() {
         </Text>
         <UpdatedAgo updatedAt={updatedAt} error={error} />
       </Group>
+      {hideError && (
+        <Text size="sm" c="red" px="xs">
+          {hideError}
+        </Text>
+      )}
       {!data ? (
         error ? (
           <LoadError message={error.message} onRetry={refresh} />
@@ -118,7 +148,7 @@ export function DashboardPage() {
           for everything.
         </EmptyState>
       ) : (
-        <TileGrid groups={groups} flashing={flashing} />
+        <TileGrid groups={groups} flashing={flashing} onHide={hide} />
       )}
     </div>
   );

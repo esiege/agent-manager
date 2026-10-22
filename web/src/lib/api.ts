@@ -12,6 +12,7 @@ import {
   type AlertSubscriptionInput,
   type ApiError,
   type CreateKeyResponse,
+  type HideAgentsResponse,
   type KeysResponse,
   type LogsQuery,
   type LogsQueryResponse,
@@ -130,6 +131,8 @@ export const api = {
     request<{ subscription: AlertSubscription }>('/alerts', { method: 'POST', body: input }),
   deleteAlert: (id: string) => request<{ ok: true }>('/alerts/delete', { method: 'POST', body: { id } }),
   testAlert: (id: string) => request<{ subscription: AlertSubscription }>('/alerts/test', { method: 'POST', body: { id } }),
+  hideAgents: (agentIds: string[], hidden: boolean) =>
+    request<HideAgentsResponse>('/agents/hide', { method: 'POST', body: { agentIds, hidden } }),
   sendMessage: (input: SendMessageInput) => request<SendMessageResponse>('/messages', { method: 'POST', body: input }),
 };
 

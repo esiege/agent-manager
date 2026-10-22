@@ -193,6 +193,8 @@ export interface Agent {
   keyName: string;
   /** The request (its turn.startedAt) a "connection lost" alert went out for, so it goes once. */
   lostAlertFor?: string | null;
+  /** When the owner hid it. Hidden agents are left out of every list in the UI. */
+  hiddenAt?: string | null;
 }
 
 /** An agent as the UI sees it: with its derived state. */
@@ -331,6 +333,17 @@ export interface MessageAckInput {
   machine: string;
   status: 'delivered' | 'failed';
   reason?: string;
+}
+
+/** POST /api/v1/agents/hide, as the owner: hide agents from the UI, or show them again. */
+export interface HideAgentsInput {
+  agentIds: string[];
+  hidden: boolean;
+}
+
+export interface HideAgentsResponse {
+  /** The ids that were found and changed. */
+  agentIds: string[];
 }
 
 // ---- Responses ----

@@ -39,6 +39,7 @@ function toViews(agents: Agent[], now: number): AgentView[] {
     promptAt: a.promptAt ?? null,
     turn: a.turn ?? null,
     result: a.result ?? null,
+    hiddenAt: a.hiddenAt ?? null,
     effectiveState: states.get(a.id)!,
     runningChildren: running.get(a.id) ?? 0,
   }));

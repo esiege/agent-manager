@@ -4,6 +4,7 @@ import type {
   AgentsResponse,
   CreateKeyResponse,
   HeartbeatResponse,
+  HideAgentsResponse,
   InboxResponse,
   LogsQueryResponse,
   ReportResponse,
@@ -12,6 +13,7 @@ import type {
 import { OWNER_WRITE_HEADER, unfinishedReason } from '@agent-manager/shared';
 import { resetAuthState } from '../src/auth';
 import { heartbeat, postLogs, report } from '../src/handlers/ingest';
+import { hideAgents } from '../src/handlers/hide';
 import { createKey, listKeys, revokeKey } from '../src/handlers/keys';
 import { ackMessage, inbox, sendMessage } from '../src/handlers/messages';
 import { agent, agents, getLogs, me } from '../src/handlers/read';
@@ -383,6 +385,42 @@ describe('messages to agents', () => {
 
     await call(report, 'POST', '/api/v1/report', { key, body: { agentId: SESSION, kind: 'claude-code', machine: 'pc', state: 'stopped' } });
     expect((await send({})).body).toEqual({ error: 'The session is stopped, so nothing would deliver the message' });
+  });
+});
+
+describe('hiding agents', () => {
+  const SESSION = 'pc/claude/s1';
+  let key: string;
+  beforeEach(async () => {
+    key = await makeKey();
+    await send({ state: 'stopped' });
+  });
+
+  const send = (body: Record<string, unknown>) =>
+    call(report, 'POST', '/api/v1/report', { key, body: { agentId: SESSION, kind: 'claude-code', machine: 'pc', ...body } });
+  const hide = (body: unknown, opts: { writeHeader?: boolean } = {}) =>
+    call(hideAgents, 'POST', '/api/v1/agents/hide', { ...asOwner, ...opts, body });
+  const listed = async () => ((await call(agents, 'GET', '/api/v1/agents', asOwner)).body as AgentsResponse).agents[0]!;
+
+  it('hides and shows agents, skipping unknown ids', async () => {
+    const res = await hide({ agentIds: [SESSION, 'nobody'], hidden: true });
+    expect(res).toEqual({ status: 200, body: { agentIds: [SESSION] } satisfies HideAgentsResponse });
+    expect((await listed()).hiddenAt).toBe(clock.toISOString());
+    await hide({ agentIds: [SESSION], hidden: false });
+    expect((await listed()).hiddenAt).toBeNull();
+  });
+
+  it('keeps it hidden through later reports and prompts', async () => {
+    await hide({ agentIds: [SESSION], hidden: true });
+    tick(5);
+    await send({ state: 'working', turn: 'start', prompt: 'Carry on' });
+    expect((await listed()).hiddenAt).not.toBeNull();
+  });
+
+  it('refuses bad input and posts from other sites', async () => {
+    expect((await hide({ agentIds: [], hidden: true })).status).toBe(400);
+    expect((await hide({ agentIds: [SESSION] })).status).toBe(400);
+    expect((await hide({ agentIds: [SESSION], hidden: true }, { writeHeader: false })).status).toBe(403);
   });
 });
 

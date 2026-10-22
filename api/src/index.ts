@@ -9,6 +9,7 @@ import { agent, agents, getLogs, me } from './handlers/read';
 import { createKey, listKeys, revokeKey } from './handlers/keys';
 import { deleteAlert, listAlerts, saveAlert, sweepAlerts, testAlert } from './handlers/alerts';
 import { ackMessage, inbox, sendMessage } from './handlers/messages';
+import { hideAgents } from './handlers/hide';
 
 function register(name: string, method: 'GET' | 'POST', route: string, handler: Handler) {
   app.http(name, {
@@ -46,6 +47,7 @@ register('me', 'GET', 'v1/me', me);
 register('agents', 'GET', 'v1/agents', agents);
 register('agent', 'GET', 'v1/agent', agent);
 register('getLogs', 'GET', 'v1/logs', getLogs);
+register('hideAgents', 'POST', 'v1/agents/hide', hideAgents);
 
 register('listKeys', 'GET', 'v1/keys', listKeys);
 register('createKey', 'POST', 'v1/keys', createKey);
