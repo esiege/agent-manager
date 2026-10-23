@@ -46,7 +46,8 @@ export function AgentTile({ group, flashing, onHide }: AgentTileProps) {
   const unfinished = unfinishedReason(lead);
   const result = currentResult(lead);
   const threads = group.instances.reduce((n, i) => n + i.runningChildren, 0);
-  const lastSeen = group.instances.reduce((m, i) => (i.lastSeen > m ? i.lastSeen : m), lead.lastSeen);
+  // When it last did something: heartbeats move lastSeen but not lastReportAt.
+  const lastActive = group.instances.reduce((m, i) => (i.lastReportAt > m ? i.lastReportAt : m), lead.lastReportAt);
   // Tint the panels that want the owner, so they stand out at a glance.
   const wantsOwner = state === 'waiting' || state === 'failed';
   const tinted = wantsOwner || unfinished !== null;
@@ -101,7 +102,7 @@ export function AgentTile({ group, flashing, onHide }: AgentTileProps) {
           <FootExtra>{lead.machine}</FootExtra>
           {group.instances.length > 1 && <FootExtra>{plural(group.instances.length, 'session')}</FootExtra>}
           {threads > 0 && <FootExtra>{plural(threads, 'thread')}</FootExtra>}
-          <RelativeTime iso={lastSeen} size="xs" c="dimmed" />
+          <RelativeTime iso={lastActive} size="xs" c="dimmed" />
         </div>
       </Link>
       {onHide && (
