@@ -41,7 +41,7 @@ function Invoke-Native([string]$What, [scriptblock]$Command) {
 }
 
 if (-not $SkipInfra -and -not $OwnerLogins) {
-  throw 'Pass -OwnerLogins with the GitHub username(s) allowed to sign in, for example -OwnerLogins esiege'
+  throw 'Pass -OwnerLogins with the GitHub username(s) allowed to sign in, for example -OwnerLogins your-github-username'
 }
 
 if (-not $SkipInfra) {

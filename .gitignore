@@ -10,3 +10,6 @@ api/.local-store.json
 
 # Built by the reporter, served by the web app
 web/public/agentctl.js
+
+# Your deployed site's address (kept local, not published)
+LIVE-SITE.md

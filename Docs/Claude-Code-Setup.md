@@ -8,12 +8,12 @@ You run the install yourself. Claude Code in auto mode blocks every agent, inclu
 
 1. **Make a key.** On the Settings tab of Agent Manager, make a machine key named after the PC, for example `pc-studio` or `pc-laptop`.
 2. **Save the key.** On that PC, run the PowerShell line the tab shows. It saves the key as `AGENT_MANAGER_KEY` for your Windows user. The tab shows the key only once, so do this before closing the window.
-3. **Install.** On that PC, run these in your own PowerShell window (a VS Code terminal works):
+3. **Install.** On that PC, run these in your own PowerShell window (a VS Code terminal works). Replace `<your-agent-manager-url>` with your site's address, which `deploy.ps1` prints at the end:
 
    ```powershell
    New-Item -ItemType Directory -Force "$HOME\.agent-manager" | Out-Null
-   Invoke-WebRequest "https://red-dune-07160bb1e.1.azurestaticapps.net/agentctl.js" -OutFile "$HOME\.agent-manager\agentctl.js" -UseBasicParsing
-   node "$HOME\.agent-manager\agentctl.js" install --url "https://red-dune-07160bb1e.1.azurestaticapps.net"
+   Invoke-WebRequest "<your-agent-manager-url>/agentctl.js" -OutFile "$HOME\.agent-manager\agentctl.js" -UseBasicParsing
+   node "$HOME\.agent-manager\agentctl.js" install --url "<your-agent-manager-url>"
    node "$HOME\.agent-manager\agentctl.js" doctor
    ```
 

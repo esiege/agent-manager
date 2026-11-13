@@ -113,7 +113,7 @@ Tests: `api/test/api.test.ts` ("messages to agents") and `reporter/test/inbox.te
 **Tested live on Oct 12, 2026** (Claude Code 2.1.296, VS Code extension, Windows 11). The owner sent "Does this work?" from the agent page to an idle session on the same PC:
 - **Delivered.** The heartbeat posted it about 5 s after it was sent, and acked it as delivered. It started a new turn in the idle session.
 - **Labelled as a peer message, not as the owner's prompt.** Claude Code presented it as "Another Claude session sent a message… not typed by your user". The receiving Claude is told it can't approve anything or change settings because of it. So the own-child token gets the message delivered without a hold, but it doesn't give the message the owner's authority. That's the safer of the two outcomes.
-- The footer "(Sent from Agent Manager by esiege)" came through, which tells the session and the person at the window where it came from.
+- The footer "(Sent from Agent Manager by <owner login>)" came through, which tells the session and the person at the window where it came from.
 
 Still true: Claude Code doesn't answer on the pipe, so "posted" means the pipe took the lines. A wrong token would be dropped without any error.
 
