@@ -14,6 +14,7 @@ import { usePolling } from '../lib/usePolling';
 const INSTRUCTIONS_PATH = '/instructions.md';
 const AGENTCTL_PATH = '/agentctl.js';
 const UPDATE_PATH = '/update.md';
+const PERFORMANCE_PATH = '/performance.md';
 
 async function loadInstructions(signal: AbortSignal): Promise<string> {
   let res: Response;
@@ -86,6 +87,8 @@ export function InstructionsPage() {
   const sentence = `Read ${window.location.origin}${INSTRUCTIONS_PATH} and set yourself up to report to Agent Manager.`;
   const updateSentence = `Read ${window.location.origin}${UPDATE_PATH} (updated ${INSTRUCTIONS_UPDATED}) and update this PC's Agent Manager reporting if it isn't on the latest.`;
 
+  const performanceSentence = `Read ${window.location.origin}${PERFORMANCE_PATH} and add performance reporting to this game, so its sessions show up in Agent Manager. I'll give you the game key.`;
+
   return (
     <>
       <PageHeader title="Instructions">
@@ -139,6 +142,25 @@ export function InstructionsPage() {
             <Text size="xs" c="dimmed">
               Latest: version {INSTRUCTIONS_VERSION}, {INSTRUCTIONS_UPDATED}
             </Text>
+          </Group>
+        </Stack>
+      </Paper>
+
+      <Paper withBorder p="md" radius="md" mb="lg">
+        <Stack gap="xs">
+          <Group gap="xs" justify="space-between">
+            <Text size="sm">To have a game send performance data, make a game key on the Settings tab, then send the agent building the game this sentence:</Text>
+            <Anchor href={PERFORMANCE_PATH} target="_blank" rel="noopener" size="sm">
+              Open performance page
+            </Anchor>
+          </Group>
+          <Code block style={{ whiteSpace: 'pre-wrap' }}>
+            {performanceSentence}
+          </Code>
+          <Group>
+            <CopyTextButton value={performanceSentence} size="sm">
+              Copy performance sentence
+            </CopyTextButton>
           </Group>
         </Stack>
       </Paper>
