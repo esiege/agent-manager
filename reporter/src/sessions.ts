@@ -5,6 +5,7 @@
 //   sessions/<sessionId>/context.json       the story and task pinned by agentctl, and the current todo
 //   sessions/<sessionId>/inbox.json         the session's inbox address and token, only while messages are on
 
+import type { WorkType } from '@agent-manager/shared';
 import { existsSync, readdirSync, rmSync, statSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { readJsonFile, writeJsonFile } from './files';
@@ -42,6 +43,11 @@ export interface SessionContext {
   headAtPrompt?: string;
   /** True once this request's finished work was reported. */
   reported?: boolean;
+  /** Set by `agentctl story --type`: the kind of work, for the Reporting tab. */
+  workType?: WorkType;
+  /** The transcript whose tokens are counted, and how far (bytes) they have been. */
+  usagePath?: string;
+  usageOffset?: number;
 }
 
 /**

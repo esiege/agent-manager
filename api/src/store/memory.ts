@@ -2,8 +2,19 @@
 // Never used in Azure: see store/index.ts.
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import type { Agent, AgentEvent, AgentKind, AgentMessage, AlertSubscription, LogEntry } from '@agent-manager/shared';
-import { MESSAGE_RETENTION_SECONDS, RETENTION_DAYS, type LogFilter, type MessageFilter, type Store, type StoredKey } from './types';
+import type { Agent, AgentEvent, AgentKind, AgentMessage, AlertSubscription, LogEntry, PerfSample, PerfSession } from '@agent-manager/shared';
+import {
+  isReportingEvent,
+  MESSAGE_RETENTION_SECONDS,
+  PERF_SAMPLE_RETENTION_SECONDS,
+  PERF_SESSION_RETENTION_SECONDS,
+  REPORTING_RETENTION_DAYS,
+  RETENTION_DAYS,
+  type LogFilter,
+  type MessageFilter,
+  type Store,
+  type StoredKey,
+} from './types';
 
 interface Snapshot {
   keys: StoredKey[];
@@ -14,6 +25,9 @@ interface Snapshot {
   alerts?: AlertSubscription[];
   /** Missing in files saved before messages existed. */
   messages?: AgentMessage[];
+  /** Missing in files saved before performance data existed. */
+  perfSessions?: PerfSession[];
+  perfSamples?: PerfSample[];
 }
 
 export class MemoryStore implements Store {
@@ -23,6 +37,8 @@ export class MemoryStore implements Store {
   private logs: LogEntry[] = [];
   private alerts = new Map<string, AlertSubscription>();
   private messages: AgentMessage[] = [];
+  private perfSessions = new Map<string, PerfSession>();
+  private perfSamples = new Map<string, PerfSample>();
 
   constructor(
     private readonly file?: string,
@@ -36,16 +52,22 @@ export class MemoryStore implements Store {
       this.events = snap.events;
       this.logs = snap.logs;
       this.messages = snap.messages ?? [];
+      for (const p of snap.perfSessions ?? []) this.perfSessions.set(p.id, p);
+      for (const p of snap.perfSamples ?? []) this.perfSamples.set(p.id, p);
       this.prune();
     }
   }
 
   private prune() {
     const cutoff = new Date(this.now().getTime() - RETENTION_DAYS * 86_400_000).toISOString();
-    this.events = this.events.filter((e) => e.receivedAt >= cutoff);
+    const reportingCutoff = new Date(this.now().getTime() - REPORTING_RETENTION_DAYS * 86_400_000).toISOString();
+    this.events = this.events.filter((e) => e.receivedAt >= (isReportingEvent(e) ? reportingCutoff : cutoff));
     this.logs = this.logs.filter((l) => l.receivedAt >= cutoff);
     const messageCutoff = new Date(this.now().getTime() - MESSAGE_RETENTION_SECONDS * 1000).toISOString();
     this.messages = this.messages.filter((m) => m.createdAt >= messageCutoff);
+    const ago = (seconds: number) => new Date(this.now().getTime() - seconds * 1000).toISOString();
+    for (const [id, p] of this.perfSessions) if (p.lastSeen < ago(PERF_SESSION_RETENTION_SECONDS)) this.perfSessions.delete(id);
+    for (const [id, p] of this.perfSamples) if (p.receivedAt < ago(PERF_SAMPLE_RETENTION_SECONDS)) this.perfSamples.delete(id);
   }
 
   private save() {
@@ -57,6 +79,8 @@ export class MemoryStore implements Store {
       logs: this.logs,
       alerts: [...this.alerts.values()],
       messages: this.messages,
+      perfSessions: [...this.perfSessions.values()],
+      perfSamples: [...this.perfSamples.values()],
     };
     writeFileSync(this.file, JSON.stringify(snap));
   }
@@ -101,6 +125,10 @@ export class MemoryStore implements Store {
         .sort((a, b) => b.at.localeCompare(a.at))
         .slice(0, limit),
     );
+  }
+
+  async listReportingEvents(since: string) {
+    return structuredClone(this.events.filter((e) => e.at >= since && isReportingEvent(e)));
   }
 
   async addLogs(logs: LogEntry[]) {
@@ -154,6 +182,41 @@ export class MemoryStore implements Store {
         .filter((m) => m.machine === machine && (!f.agentId || m.agentId === f.agentId) && (!f.status || m.status === f.status))
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         .slice(0, f.limit),
+    );
+  }
+
+  async getPerfSession(id: string) {
+    return structuredClone(this.perfSessions.get(id) ?? null);
+  }
+  async putPerfSession(session: PerfSession) {
+    this.perfSessions.set(session.id, structuredClone(session));
+    this.save();
+  }
+  async listPerfSessions(since: string, limit: number) {
+    return structuredClone(
+      [...this.perfSessions.values()]
+        .filter((p) => p.lastSeen >= since)
+        .sort((a, b) => b.lastSeen.localeCompare(a.lastSeen))
+        .slice(0, limit),
+    );
+  }
+  async addPerfSamples(samples: PerfSample[]) {
+    const added: PerfSample[] = [];
+    for (const sample of samples) {
+      if (this.perfSamples.has(sample.id)) continue;
+      this.perfSamples.set(sample.id, structuredClone(sample));
+      added.push(sample);
+    }
+    this.prune();
+    this.save();
+    return added;
+  }
+  async listPerfSamples(sessionId: string, limit: number) {
+    return structuredClone(
+      [...this.perfSamples.values()]
+        .filter((p) => p.sessionId === sessionId)
+        .sort((a, b) => a.t - b.t)
+        .slice(-limit),
     );
   }
 }

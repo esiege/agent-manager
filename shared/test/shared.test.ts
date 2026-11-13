@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  costOf,
   effectiveState,
   INSTRUCTIONS_UPDATED,
   INSTRUCTIONS_VERSION,
@@ -9,6 +10,7 @@ import {
   validateHeartbeat,
   validateLogs,
   validateReport,
+  workType,
 } from '../src';
 
 describe('validateReport', () => {
@@ -110,5 +112,45 @@ describe('instructions pages', () => {
       expect(page(name)).toContain(`Updated: **${INSTRUCTIONS_UPDATED}**`);
     }
     expect(page('update.md')).toContain(`instructions version ${INSTRUCTIONS_VERSION} (${INSTRUCTIONS_UPDATED})`);
+  });
+});
+
+describe('workType', () => {
+  const sort = (texts: string[], kind: 'claude-code' | 'openclaw' | 'service' = 'claude-code') => workType({ declared: null, kind, texts });
+
+  it('takes what the agent said over the words', () => {
+    expect(workType({ declared: 'level-design', kind: 'claude-code', texts: ['Fix the tests'] })).toEqual({ type: 'level-design', source: 'agent' });
+  });
+
+  it('sorts by the words of the story, prompt and finished work', () => {
+    expect(sort(['Level design pass on the arena']).type).toBe('level-design');
+    expect(sort(['Add vitest tests for the parser']).type).toBe('testing');
+    expect(sort(['Fix the crash when saving']).type).toBe('bugfix');
+    expect(sort(['Deploy to Azure with bicep']).type).toBe('infra');
+    expect(sort(['Write the patch notes for 1.4']).type).toBe('community');
+  });
+
+  it("doesn't take a product's features for non-technical work", () => {
+    expect(sort(['Quest chain: SuggestQuests', 'Novel outline beats: SuggestNovelOutlineBeat'])).toEqual({ type: 'feature', source: 'kind' });
+  });
+
+  it('falls back to the kind of agent', () => {
+    expect(sort([], 'openclaw').type).toBe('community');
+    expect(sort([], 'service').type).toBe('other');
+  });
+});
+
+describe('costOf', () => {
+  const usage = { input: 1_000_000, output: 1_000_000, cacheWrite: 1_000_000, cacheWrite1h: 0, cacheRead: 1_000_000 };
+
+  it('prices tokens at the model’s list price', () => {
+    // $4 in + $20 out + $5 for 5-minute cache writes + $0.20 cache reads.
+    expect(costOf({ model: 'claude-opus-5-5', ...usage })).toBeCloseTo(29.2);
+    expect(costOf({ model: 'claude-opus-5-5[1m]', ...usage, cacheWrite1h: 1_000_000 })).toBeCloseTo(32.2);
+    expect(costOf({ model: 'claude-sonnet-4-6', ...usage })).toBeCloseTo(3 + 15 + 3.75 + 0.3);
+  });
+
+  it('has no price for a model it doesn’t know', () => {
+    expect(costOf({ model: 'gpt-9', ...usage })).toBeNull();
   });
 });

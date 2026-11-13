@@ -4,7 +4,19 @@
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { INSTRUCTIONS_UPDATED, INSTRUCTIONS_VERSION, REPORTED_STATES, type ReportInput, type ReportResponse, type ReportedState } from '@agent-manager/shared';
+import {
+  INSTRUCTIONS_UPDATED,
+  INSTRUCTIONS_VERSION,
+  REPORTED_STATES,
+  WORK_TYPES,
+  perfStats,
+  type PerfSessionDetailResponse,
+  type PerfSessionsResponse,
+  type ReportInput,
+  type ReportResponse,
+  type ReportedState,
+  type WorkType,
+} from '@agent-manager/shared';
 import { ConfigError, defaultMachineName, loadConfig, type Config } from './config';
 import { ensureDaemon, runDaemon } from './daemon';
 import { logLine, readJsonFile, writeJsonFile } from './files';
@@ -13,7 +25,7 @@ import { planHook, type HookInput, type PlannedReport } from './hook';
 import { removeAllInboxes, syncInbox } from './inbox';
 import { paths } from './paths';
 import { ancestors, isAlive } from './proc';
-import { post, SendError } from './send';
+import { get, post, SendError } from './send';
 import {
   addSubagent,
   listSessions,
@@ -30,7 +42,7 @@ import {
 } from './sessions';
 import { hasAgentctlHooks, withAgentctlHooks, withoutAgentctlHooks } from './settings';
 import { splitChecks } from './result';
-import { readTranscript } from './transcript';
+import { readTranscript, readUsage } from './transcript';
 
 const HELP = `agentctl: reports the Claude Code sessions on this PC to Agent Manager.
 
@@ -43,14 +55,19 @@ const HELP = `agentctl: reports the Claude Code sessions on this PC to Agent Man
   agentctl uninstall          Removes the hooks (the config stays).
   agentctl status "<text>" [--state working|waiting|idle]
       Sets this session's one-line activity. Run it from a Claude Code shell.
-  agentctl story "<text>"     Sets the story this session is on: the ticket and its title, or a
-                              one-line summary of the goal. "agentctl story --clear" goes back to
-                              the one worked out from the branch and the session's title.
+  agentctl story "<text>" [--type <kind of work>]
+      Sets the story this session is on: the ticket and its title, or a one-line summary of the
+      goal. "agentctl story --clear" goes back to the one worked out from the branch and the
+      session's title. --type says what kind of work it is, for the Reporting tab: one of
+      ${WORK_TYPES.join(', ')}.
   agentctl task "<text>"      Sets the technical step it is on, until the next prompt (or --clear).
   agentctl done "<summary>" [--check "<what you should see>"]... [--title "<name>"] [--uncommitted]
       Reports finished work: the commit (its subject is the title, linked to GitHub), the prompt,
       the summary (Markdown; "-" reads it from stdin) and acceptance checks. Commit first: it
       refuses while there are uncommitted changes, unless --uncommitted.
+  agentctl perf [--game <name>] [--days <n>] [--limit <n>] [--json]
+      Lists the performance sessions games have sent, newest first, one line a session.
+  agentctl perf <sessionId>   Prints one session as JSON: its totals, worst hitches and samples.
   agentctl test               Sends a test report and prints the answer.
   agentctl doctor             Shows the config, hooks, heartbeat, sessions and recent errors.
   agentctl hook               (used by the hooks) Reads one hook event from stdin.
@@ -63,7 +80,7 @@ class UsageError extends Error {}
 class NotFoundError extends Error {}
 
 /** Flags that take no value. */
-const SWITCHES = new Set(['clear', 'uncommitted', 'allow-messages', 'no-messages']);
+const SWITCHES = new Set(['clear', 'uncommitted', 'allow-messages', 'no-messages', 'json']);
 
 /** Flags that can be given more than once; every value is kept in `lists`. */
 const REPEATED = new Set(['check']);
@@ -155,6 +172,7 @@ async function hookCommand() {
       return root ? commitInfo(root, sha) : null;
     },
     transcript: readTranscript,
+    usage: readUsage,
     context: readContext(input.session_id),
     sendPrompts: config.prompts !== false,
   });
@@ -199,7 +217,7 @@ function findCallingSession() {
   return candidates[0];
 }
 
-type SessionFields = Pick<ReportInput, 'activity' | 'story' | 'task' | 'state' | 'result'>;
+type SessionFields = Pick<ReportInput, 'activity' | 'story' | 'task' | 'state' | 'result' | 'workType'>;
 
 /** Sends one report for the calling session, carrying just `fields`. */
 async function reportForSession(s: ReturnType<typeof findCallingSession>, fields: SessionFields): Promise<ReportResponse> {
@@ -235,18 +253,31 @@ async function statusCommand(positional: string[], flags: Record<string, string>
 async function pinCommand(field: 'story' | 'task', positional: string[], flags: Record<string, string>) {
   const clear = 'clear' in flags;
   const text = positional.join(' ').trim();
-  if (!text && !clear) throw new UsageError(`Usage: agentctl ${field} "<text>" | agentctl ${field} --clear`);
+  const workType = field === 'story' && 'type' in flags ? workTypeFlag(flags.type) : undefined;
+  if (!text && !clear && !workType) {
+    throw new UsageError(`Usage: agentctl ${field} "<text>"${field === 'story' ? ' [--type <kind of work>]' : ''} | agentctl ${field} --clear`);
+  }
   const s = findCallingSession();
-  const context: SessionContext = { ...readContext(s.sessionId), [field]: clear ? undefined : text };
+  let context: SessionContext = readContext(s.sessionId);
+  if (text || clear) context = { ...context, [field]: clear ? undefined : text };
+  if (workType) context = { ...context, workType };
   writeContext(s.sessionId, context);
   // A cleared story goes back to the worked-out one at the next hook event.
-  const value = clear ? (field === 'task' ? (context.todo ?? null) : undefined) : text;
-  if (value === undefined) {
+  const value = clear ? (field === 'task' ? (context.todo ?? null) : undefined) : text || undefined;
+  if (value === undefined && !workType) {
     console.log(`Story cleared for ${s.name}; the next update works it out again.`);
     return;
   }
-  const res = await reportForSession(s, { [field]: value });
-  console.log(`${field === 'story' ? 'Story' : 'Task'} ${value ? 'set' : 'cleared'} for ${s.name}: ${res.agentUrl}`);
+  const res = await reportForSession(s, { ...(value !== undefined ? { [field]: value } : {}), ...(workType ? { workType } : {}) });
+  const what = value !== undefined ? `${field === 'story' ? 'Story' : 'Task'} ${value ? 'set' : 'cleared'}` : 'Work type set';
+  console.log(`${what} for ${s.name}${workType ? ` (${workType})` : ''}: ${res.agentUrl}`);
+}
+
+function workTypeFlag(value: string | undefined): WorkType {
+  if (!value || !(WORK_TYPES as readonly string[]).includes(value)) {
+    throw new UsageError(`--type must be one of ${WORK_TYPES.join(', ')}`);
+  }
+  return value as WorkType;
 }
 
 class UncommittedError extends Error {}
@@ -386,6 +417,50 @@ function uninstallCommand() {
   console.log(`Removed the agentctl hooks from ${paths.claudeSettings()}${backup ? ` (backup: ${backup})` : ''}.`);
 }
 
+// ---- perf ----
+
+async function perfCommand(positional: string[], flags: Record<string, string>) {
+  const config = loadConfig();
+  if (positional[0]) {
+    const detail = await get<PerfSessionDetailResponse>(config, `/perf/session?${new URLSearchParams({ id: positional[0] })}`);
+    console.log(JSON.stringify(detail, null, 2));
+    return;
+  }
+  const params = new URLSearchParams({ days: flags.days ?? '30', limit: flags.limit ?? '50' });
+  if (flags.game) params.set('game', flags.game);
+  const list = await get<PerfSessionsResponse>(config, `/perf/sessions?${params}`);
+  if (flags.json) {
+    console.log(JSON.stringify(list, null, 2));
+    return;
+  }
+  if (list.sessions.length === 0) {
+    console.log(`No performance sessions in the last ${list.days} days${flags.game ? ` for ${flags.game}` : ''}.`);
+    return;
+  }
+  const num = (v: number | null, unit: string, digits = 0) => (v === null ? '-' : `${v.toFixed(digits)}${unit}`);
+  const rows = list.sessions.map((s) => {
+    const stats = perfStats(s.totals);
+    return [
+      s.id,
+      `${s.startedAt.slice(0, 16)}Z`,
+      s.game,
+      s.build ?? '-',
+      s.machine,
+      s.gpu ?? '-',
+      s.resolution ?? '-',
+      num(stats.seconds, 's'),
+      num(stats.avgFps, ' fps'),
+      `p99 ${num(stats.frameMsP99, ' ms', 1)}`,
+      `worst ${num(stats.frameMsMax, ' ms', 1)}`,
+      `${stats.hitches} hitches`,
+      stats.bound ? `${stats.bound}-bound` : '-',
+    ];
+  });
+  const widths = rows[0]!.map((_, i) => Math.max(...rows.map((r) => r[i]!.length)));
+  for (const r of rows) console.log(r.map((cell, i) => cell.padEnd(widths[i]!)).join('  ').trimEnd());
+  if (list.truncated) console.log(`(more sessions exist; raise --limit or narrow with --game)`);
+}
+
 // ---- test / doctor ----
 
 async function testCommand() {
@@ -474,6 +549,9 @@ async function main(argv: string[]): Promise<number> {
         return 0;
       case 'done':
         await doneCommand(positional, flags, lists);
+        return 0;
+      case 'perf':
+        await perfCommand(positional, flags);
         return 0;
       case 'test':
         await testCommand();

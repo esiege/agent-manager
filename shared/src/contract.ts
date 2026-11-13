@@ -4,9 +4,9 @@
 export const API_BASE = '/api/v1';
 
 /** Bump when Docs/instructions.md changes in a way agents must act on (I-05). */
-export const INSTRUCTIONS_VERSION = 2;
+export const INSTRUCTIONS_VERSION = 3;
 /** When the instructions and agentctl last changed. web/public/update.md shows the same date. */
-export const INSTRUCTIONS_UPDATED = '2026-10-11';
+export const INSTRUCTIONS_UPDATED = '2026-10-26';
 
 export const AGENT_KINDS = ['claude-code', 'openclaw', 'service', 'other'] as const;
 export type AgentKind = (typeof AGENT_KINDS)[number];
@@ -32,6 +32,27 @@ export type AlertEvent = (typeof ALERT_EVENTS)[number];
 export const ALERT_CHANNELS = ['ntfy'] as const;
 export type AlertChannel = (typeof ALERT_CHANNELS)[number];
 
+/**
+ * The kinds of work the Reporting tab breaks time and tokens down by. Agents name theirs with
+ * `agentctl story --type`; work that doesn't say is sorted by workType() in work.ts.
+ */
+export const WORK_TYPES = [
+  'feature',
+  'bugfix',
+  'testing',
+  'refactor',
+  'infra',
+  'docs',
+  'level-design',
+  'game-design',
+  'writing',
+  'art',
+  'community',
+  'planning',
+  'other',
+] as const;
+export type WorkType = (typeof WORK_TYPES)[number];
+
 export const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
@@ -54,6 +75,16 @@ export const LIMITS = {
   /** A message the owner sends to an agent from the UI. */
   agentMessageLength: 4000,
   linkLength: 2000,
+  /** Models in one report's token usage. */
+  usageModels: 10,
+  perfBytes: 512 * 1024,
+  perfSamplesPerCall: 500,
+  /** Custom numbers on one performance sample. */
+  perfMetrics: 32,
+  perfMetricNameLength: 60,
+  /** Single slow frames in one call, and the worst of them kept on a session. */
+  perfHitchesPerCall: 200,
+  perfHitchesKept: 50,
 } as const;
 
 /** Owner calls that change something must carry this header, which another site can't add (CSRF). */
@@ -86,6 +117,10 @@ export interface ReportInput {
   turn?: 'start' | 'end';
   /** The report of finished work (see WorkResult). */
   result?: WorkResultInput;
+  /** The kind of work the agent is doing, for the Reporting tab. */
+  workType?: WorkType | null;
+  /** Tokens used since the agent's last report that carried usage, one entry per model. */
+  usage?: TokenUsage[];
   link?: string | null;
   details?: Record<string, unknown>;
   /** How long silence means Lost. Agents that heartbeat rarely raise it. */
@@ -140,6 +175,19 @@ export interface WorkResultInput {
   pushed?: boolean | null;
 }
 
+/** Tokens one model used. The counts don't overlap: `input` leaves out cache reads and writes. */
+export interface TokenUsage {
+  model: string;
+  /** Input tokens not read from or written to the cache. */
+  input: number;
+  output: number;
+  /** Input tokens written to the cache, all lifetimes. */
+  cacheWrite: number;
+  /** The part of cacheWrite written for an hour, which costs more than the 5-minute default. */
+  cacheWrite1h: number;
+  cacheRead: number;
+}
+
 // ---- What the manager stores and returns ----
 
 export interface WorkResult {
@@ -181,6 +229,8 @@ export interface Agent {
   turn: AgentTurn | null;
   /** The latest report of finished work. */
   result: WorkResult | null;
+  /** The kind of work it last said it was doing. */
+  workType?: WorkType | null;
   link: string | null;
   details: Record<string, unknown>;
   lostAfterSeconds: number;
@@ -219,6 +269,9 @@ export interface AgentEvent {
   result?: WorkResult | null;
   /** On "turn" events: how the turn ended. */
   turn?: AgentTurn | null;
+  workType?: WorkType | null;
+  /** Tokens the report said were used. */
+  usage?: TokenUsage[] | null;
   link: string | null;
   details: Record<string, unknown> | null;
 }
@@ -268,9 +321,17 @@ export interface AlertsResponse {
   subscriptions: AlertSubscription[];
 }
 
+/**
+ * What a key may do. "all": everything agents do, performance data included. "perf": only send
+ * performance data, so it can ship inside a game build without giving away the rest.
+ */
+export const KEY_SCOPES = ['all', 'perf'] as const;
+export type KeyScope = (typeof KEY_SCOPES)[number];
+
 export interface MachineKey {
   id: string;
   name: string;
+  scope: KeyScope;
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
@@ -407,6 +468,238 @@ export interface CreateKeyResponse {
   key: MachineKey;
   /** The secret, shown once. */
   secret: string;
+}
+
+/** How far back the Reporting tab can look. Turn, result and usage events are kept this long. */
+export const REPORTING_MAX_DAYS = 365;
+
+/** GET /api/v1/reporting: an agent the rows below refer to. */
+export interface ReportingAgent {
+  id: string;
+  name: string;
+  kind: AgentKind;
+  machine: string;
+  project: string | null;
+  parentId: string | null;
+  story: string | null;
+  workType: WorkType | null;
+  model: string | null;
+  /** A request still running counts up to here: past it, the agent went silent. */
+  lastSeen: string;
+}
+
+/** One request and how long it ran. */
+export interface ReportingTurn {
+  agentId: string;
+  startedAt: string;
+  /** Null while it runs, or when it was cut off by a lost connection. */
+  endedAt: string | null;
+  outcome: TurnOutcome;
+  prompt: string | null;
+  /** The story and work type when it ended; null for turns stored before these were kept. */
+  story: string | null;
+  workType: WorkType | null;
+}
+
+export interface ReportingUsage {
+  agentId: string;
+  at: string;
+  usage: TokenUsage[];
+  /** What the report said; a sub-agent's usage has neither, and goes by its parent's. */
+  story: string | null;
+  workType: WorkType | null;
+}
+
+/** A report of finished work. */
+export interface ReportingResult {
+  agentId: string;
+  at: string;
+  title: string;
+  commitUrl: string | null;
+  story: string | null;
+  workType: WorkType | null;
+}
+
+export interface ReportingResponse {
+  now: string;
+  days: number;
+  agents: ReportingAgent[];
+  turns: ReportingTurn[];
+  usage: ReportingUsage[];
+  results: ReportingResult[];
+}
+
+// ---- Performance of the games and apps we build (web/public/performance.md) ----
+
+/** How far back the Performance tab can look. Sessions, with their totals, are kept this long. */
+export const PERF_MAX_DAYS = 365;
+/** Samples, the per-window detail behind a session's charts, are kept this long. */
+export const PERF_SAMPLE_DAYS = 30;
+/** A session that hasn't ended and sent something this recently is still running. */
+export const PERF_LIVE_SECONDS = 120;
+/** Session ids are made by the game: a UUID works. They go in URLs and document ids. */
+export const PERF_SESSION_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{7,63}$/;
+
+/** POST /api/v1/perf/session: start one run of a game on one machine, update it, or end it. */
+export interface PerfSessionInput {
+  sessionId: string;
+  /** The game or app, named the same on every machine. */
+  game: string;
+  machine: string;
+  /** The version or commit that is running. */
+  build?: string | null;
+  /** Such as windows, linux, macos, steamdeck, android. */
+  platform?: string | null;
+  cpu?: string | null;
+  gpu?: string | null;
+  cpuCores?: number | null;
+  ramMb?: number | null;
+  vramMb?: number | null;
+  os?: string | null;
+  /** Such as 2560x1440. */
+  resolution?: string | null;
+  refreshHz?: number | null;
+  /** How long the game took to start, up to its first playable frame. */
+  loadSeconds?: number | null;
+  /** Anything else worth comparing runs by: quality preset, renderer, network region. */
+  details?: Record<string, unknown>;
+  /** True once the run is over. */
+  ended?: boolean;
+  test?: boolean;
+}
+
+/**
+ * What the game measured over one window of a few seconds. Frame times are in milliseconds.
+ * Only `t`, `seconds` and `frames` are required; send what the engine can measure.
+ */
+export interface PerfSampleInput {
+  /** Seconds since the session started, at the end of the window. Unique within the session. */
+  t: number;
+  /** How long the window was. */
+  seconds: number;
+  /** Frames drawn in the window. */
+  frames: number;
+  frameMsP50?: number;
+  frameMsP95?: number;
+  frameMsP99?: number;
+  frameMsMax?: number;
+  /** Frames that took long enough to notice; the game picks the threshold (50 ms is common). */
+  hitches?: number;
+  /** Average per frame. Engines that split the CPU's work by thread send gameMs and renderMs instead of cpuMs. */
+  cpuMs?: number;
+  gameMs?: number;
+  renderMs?: number;
+  gpuMs?: number;
+  memoryMb?: number;
+  vramMb?: number;
+  drawCalls?: number;
+  pingMs?: number;
+  /** The level, scene or menu the window was in. */
+  scene?: string;
+  /** Any other numbers, by name: entities, particles, packetLossPct. */
+  metrics?: Record<string, number>;
+}
+
+/** One frame slow enough to notice, with what each thread was doing in it. */
+export interface PerfHitch {
+  /** Seconds since the session started. */
+  t: number;
+  frameMs: number;
+  gameMs?: number;
+  renderMs?: number;
+  gpuMs?: number;
+  scene?: string;
+}
+
+/** POST /api/v1/perf/samples: samples, single slow frames, or both. */
+export interface PerfSamplesInput {
+  sessionId: string;
+  samples: PerfSampleInput[];
+  /** The session keeps the worst LIMITS.perfHitchesKept of all it is sent. */
+  hitchEvents?: PerfHitch[];
+  test?: boolean;
+}
+
+export interface PerfSample extends PerfSampleInput {
+  /** `<sessionId>:<t in ms>`, so a batch sent twice is stored once. */
+  id: string;
+  sessionId: string;
+  receivedAt: string;
+}
+
+/** A sum of values, each weighted by its window's frames; see perfStats() in perf.ts. */
+export interface PerfWeighted {
+  sum: number;
+  frames: number;
+}
+
+/** A session's samples added up as they arrive, so its numbers outlive the samples. */
+export interface PerfTotals {
+  samples: number;
+  frames: number;
+  seconds: number;
+  hitches: number;
+  frameMsMax: number | null;
+  memoryMbMax: number | null;
+  vramMbMax: number | null;
+  frameMsP50: PerfWeighted;
+  frameMsP95: PerfWeighted;
+  frameMsP99: PerfWeighted;
+  cpuMs: PerfWeighted;
+  gameMs: PerfWeighted;
+  renderMs: PerfWeighted;
+  gpuMs: PerfWeighted;
+}
+
+export interface PerfSession {
+  id: string;
+  game: string;
+  machine: string;
+  build: string | null;
+  platform: string | null;
+  cpu: string | null;
+  gpu: string | null;
+  cpuCores: number | null;
+  ramMb: number | null;
+  vramMb: number | null;
+  os: string | null;
+  resolution: string | null;
+  refreshHz: number | null;
+  loadSeconds: number | null;
+  details: Record<string, unknown>;
+  /** The slowest single frames the game reported, worst first. */
+  worstHitches: PerfHitch[];
+  startedAt: string;
+  lastSeen: string;
+  endedAt: string | null;
+  totals: PerfTotals;
+  /** Name of the key that sent it. */
+  keyName: string;
+}
+
+export interface PerfSessionResponse extends WriteResponse<PerfSession> {
+  sessionUrl: string;
+}
+
+export interface PerfSamplesResponse extends WriteResponse<{ count: number; duplicates: number; hitchEvents: number }> {}
+
+/** GET /api/v1/perf/sessions, as the owner or with a machine key: newest first. */
+export interface PerfSessionsResponse {
+  now: string;
+  days: number;
+  sessions: PerfSession[];
+  /** True when there were more sessions than one answer holds. */
+  truncated: boolean;
+}
+
+/** GET /api/v1/perf/session?id=, as the owner or with a machine key. */
+export interface PerfSessionDetailResponse {
+  now: string;
+  session: PerfSession;
+  /** Oldest first. Empty once the samples have aged out. */
+  samples: PerfSample[];
+  /** True when the session has more samples than one answer holds: these are the latest. */
+  truncated: boolean;
 }
 
 export interface MeResponse {

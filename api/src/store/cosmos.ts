@@ -1,14 +1,32 @@
 // Cosmos DB (NoSQL API, serverless) store used in Azure.
 // Containers: agents (/id), keys (/id), alerts (/id), events (/agentId, 30-day TTL), logs (/source, 30-day TTL),
-// messages (/machine, 1-day TTL).
+// messages (/machine, 1-day TTL), perfSessions (/id, 1-year TTL), perfSamples (/sessionId, 30-day TTL).
 // infra/main.bicep creates the same containers; ensure() creates them too when they're missing.
 
 import { createHash } from 'node:crypto';
 import { CosmosClient, type Container, type SqlParameter } from '@azure/cosmos';
-import type { Agent, AgentEvent, AgentKind, AgentMessage, AlertSubscription, LogEntry } from '@agent-manager/shared';
-import { MESSAGE_RETENTION_SECONDS, RETENTION_DAYS, type LogFilter, type MessageFilter, type Store, type StoredKey } from './types';
+import type { Agent, AgentEvent, AgentKind, AgentMessage, AlertSubscription, LogEntry, PerfSample, PerfSession } from '@agent-manager/shared';
+import {
+  isReportingEvent,
+  MESSAGE_RETENTION_SECONDS,
+  PERF_SAMPLE_RETENTION_SECONDS,
+  PERF_SESSION_RETENTION_SECONDS,
+  REPORTING_RETENTION_DAYS,
+  RETENTION_DAYS,
+  type LogFilter,
+  type MessageFilter,
+  type Store,
+  type StoredKey,
+} from './types';
 
 const TTL_SECONDS = RETENTION_DAYS * 86_400;
+/** Per-item TTL on reporting events, which overrides the events container's default. */
+const REPORTING_TTL_SECONDS = REPORTING_RETENTION_DAYS * 86_400;
+
+/** An event as stored: reporting events carry their own, longer TTL. */
+function eventDoc(e: AgentEvent): AgentEvent & { ttl?: number } {
+  return isReportingEvent(e) ? { ...e, ttl: REPORTING_TTL_SECONDS } : e;
+}
 
 const CONTAINERS = {
   agents: { partitionKey: '/id' },
@@ -17,6 +35,8 @@ const CONTAINERS = {
   events: { partitionKey: '/agentId', defaultTtl: TTL_SECONDS },
   logs: { partitionKey: '/source', defaultTtl: TTL_SECONDS },
   messages: { partitionKey: '/machine', defaultTtl: MESSAGE_RETENTION_SECONDS },
+  perfSessions: { partitionKey: '/id', defaultTtl: PERF_SESSION_RETENTION_SECONDS },
+  perfSamples: { partitionKey: '/sessionId', defaultTtl: PERF_SAMPLE_RETENTION_SECONDS },
 } as const;
 
 type Name = keyof typeof CONTAINERS;
@@ -133,7 +153,7 @@ export class CosmosStore implements Store {
 
   async addEvents(events: AgentEvent[]) {
     const container = await this.c('events');
-    await Promise.all(events.map((e) => container.items.create(e)));
+    await Promise.all(events.map((e) => container.items.create(eventDoc(e))));
   }
   listEvents(agentId: string, limit: number) {
     return this.query<AgentEvent>(
@@ -145,6 +165,26 @@ export class CosmosStore implements Store {
       ],
       agentId,
     );
+  }
+
+  async listReportingEvents(since: string) {
+    const container = await this.c('events');
+    const { resources } = await container.items
+      .query<AgentEvent & { ttl?: number } & Record<string, unknown>>({
+        query: "SELECT * FROM c WHERE c.at >= @since AND (c.type = 'turn' OR c.type = 'result' OR ARRAY_LENGTH(c.usage) > 0)",
+        parameters: [{ name: '@since', value: since }],
+      })
+      .fetchAll();
+    // Events stored before reporting kept them longer still expire with the container's default:
+    // write them once more with the longer TTL (the clock restarts from the write).
+    const old = resources.filter((r) => r.ttl === undefined);
+    for (let i = 0; i < old.length; i += 50) {
+      await Promise.all(old.slice(i, i + 50).map((r) => container.items.upsert(eventDoc(clean<AgentEvent>(r)))));
+    }
+    return resources.map((r) => {
+      const { ttl: _ttl, ...event } = clean<AgentEvent & { ttl?: number }>(r);
+      return event as AgentEvent;
+    });
   }
 
   async addLogs(logs: LogEntry[]) {
@@ -225,5 +265,48 @@ export class CosmosStore implements Store {
     }
     const sql = `SELECT TOP @limit * FROM c WHERE ${where.join(' AND ')} ORDER BY c.createdAt DESC`;
     return this.query<AgentMessage>('messages', sql, parameters, machine);
+  }
+
+  getPerfSession(id: string) {
+    return this.read<PerfSession>('perfSessions', id, id);
+  }
+  async putPerfSession(session: PerfSession) {
+    await (await this.c('perfSessions')).items.upsert(session);
+  }
+  listPerfSessions(since: string, limit: number) {
+    return this.query<PerfSession>('perfSessions', 'SELECT TOP @limit * FROM c WHERE c.lastSeen >= @since ORDER BY c.lastSeen DESC', [
+      { name: '@limit', value: limit },
+      { name: '@since', value: since },
+    ]);
+  }
+  async addPerfSamples(samples: PerfSample[]) {
+    const container = await this.c('perfSamples');
+    const added: PerfSample[] = [];
+    // Create, not upsert: a sample that is already there (a batch sent twice) answers 409 and is left out.
+    for (let i = 0; i < samples.length; i += 50) {
+      await Promise.all(
+        samples.slice(i, i + 50).map(async (sample) => {
+          try {
+            await container.items.create(sample);
+            added.push(sample);
+          } catch (e) {
+            if ((e as { code?: number }).code !== 409) throw e;
+          }
+        }),
+      );
+    }
+    return added;
+  }
+  async listPerfSamples(sessionId: string, limit: number) {
+    const latest = await this.query<PerfSample>(
+      'perfSamples',
+      'SELECT TOP @limit * FROM c WHERE c.sessionId = @sessionId ORDER BY c.t DESC',
+      [
+        { name: '@limit', value: limit },
+        { name: '@sessionId', value: sessionId },
+      ],
+      sessionId,
+    );
+    return latest.reverse();
   }
 }

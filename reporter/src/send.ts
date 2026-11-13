@@ -11,14 +11,23 @@ export class SendError extends Error {
 }
 
 /** POSTs JSON to the Agent Manager API and returns the parsed answer, or throws a SendError with the server's reason. */
-export async function post<T>(config: Config, path: string, body: unknown, timeoutMs = 5000): Promise<T> {
+export function post<T>(config: Config, path: string, body: unknown, timeoutMs = 5000): Promise<T> {
+  return call<T>(config, 'POST', path, body, timeoutMs);
+}
+
+/** GETs from the Agent Manager API with the machine key. */
+export function get<T>(config: Config, path: string, timeoutMs = 15_000): Promise<T> {
+  return call<T>(config, 'GET', path, undefined, timeoutMs);
+}
+
+async function call<T>(config: Config, method: 'GET' | 'POST', path: string, body: unknown, timeoutMs: number): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${config.url}/api/v1${path}`, {
-      method: 'POST',
+      method,
       // Not Authorization: Static Web Apps replaces that header before the API sees it.
       headers: { 'content-type': 'application/json', 'x-agent-manager-key': config.key },
-      body: JSON.stringify(body),
+      body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (e) {

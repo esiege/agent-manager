@@ -12,6 +12,10 @@ import { OverviewPage } from './pages/OverviewPage';
 import { SettingsPage } from './pages/SettingsPage';
 
 // The Markdown renderer is only needed on the Instructions tab.
+// The charts are only needed on the Reporting and Performance tabs.
+const ReportingPage = lazy(() => import('./pages/ReportingPage').then((m) => ({ default: m.ReportingPage })));
+const PerformancePage = lazy(() => import('./pages/PerformancePage').then((m) => ({ default: m.PerformancePage })));
+const PerfSessionPage = lazy(() => import('./pages/PerfSessionPage').then((m) => ({ default: m.PerfSessionPage })));
 const InstructionsPage = lazy(() => import('./pages/InstructionsPage').then((m) => ({ default: m.InstructionsPage })));
 
 export function App() {
@@ -21,6 +25,30 @@ export function App() {
         <Route element={<AppLayout />}>
           <Route index element={<OverviewPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
+          <Route
+            path="reporting"
+            element={
+              <Suspense fallback={<TableSkeleton rows={10} />}>
+                <ReportingPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="performance"
+            element={
+              <Suspense fallback={<TableSkeleton rows={10} />}>
+                <PerformancePage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="performance/session"
+            element={
+              <Suspense fallback={<TableSkeleton rows={10} />}>
+                <PerfSessionPage />
+              </Suspense>
+            }
+          />
           <Route path="agents" element={<AgentsPage />} />
           <Route path="agents/detail" element={<AgentDetailPage />} />
           <Route path="logs" element={<LogsPage />} />

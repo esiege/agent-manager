@@ -22,6 +22,8 @@ import { useMe } from './AuthGate';
 const TABS = [
   { to: '/', label: 'Overview' },
   { to: '/dashboard', label: 'Dashboard' },
+  { to: '/reporting', label: 'Reporting' },
+  { to: '/performance', label: 'Performance' },
   { to: '/agents', label: 'Agents' },
   { to: '/logs', label: 'Logs' },
   { to: '/instructions', label: 'Instructions' },

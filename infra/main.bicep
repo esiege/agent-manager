@@ -48,6 +48,8 @@ var containers = [
   { id: 'events', partitionKey: '/agentId', ttl: retentionSeconds }
   { id: 'logs', partitionKey: '/source', ttl: retentionSeconds }
   { id: 'messages', partitionKey: '/machine', ttl: 86400 }
+  { id: 'perfSessions', partitionKey: '/id', ttl: 365 * 24 * 3600 }
+  { id: 'perfSamples', partitionKey: '/sessionId', ttl: retentionSeconds }
 ]
 
 resource containerResources 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = [

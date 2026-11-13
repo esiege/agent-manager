@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type {
+  ReportingResponse,
   AgentDetailResponse,
   AgentsResponse,
   CreateKeyResponse,
@@ -14,6 +15,7 @@ import { OWNER_WRITE_HEADER, unfinishedReason } from '@agent-manager/shared';
 import { resetAuthState } from '../src/auth';
 import { heartbeat, postLogs, report } from '../src/handlers/ingest';
 import { hideAgents } from '../src/handlers/hide';
+import { reporting } from '../src/handlers/reporting';
 import { createKey, listKeys, revokeKey } from '../src/handlers/keys';
 import { ackMessage, inbox, sendMessage } from '../src/handlers/messages';
 import { agent, agents, getLogs, me } from '../src/handlers/read';
@@ -250,6 +252,72 @@ describe('reports', () => {
     const detail = (await call(agent, 'GET', '/api/v1/agent?id=pc%2Fclaude%2Fs1', asOwner)).body as AgentDetailResponse;
     expect(detail.children.map((c) => c.id)).toEqual(['pc/claude/s1/sub']);
     expect(detail.events).toHaveLength(1);
+  });
+});
+
+describe('reporting', () => {
+  let key: string;
+  beforeEach(async () => {
+    key = await makeKey();
+  });
+
+  const send = (body: Record<string, unknown>) =>
+    call(report, 'POST', '/api/v1/report', {
+      key,
+      body: { agentId: 'pc/claude/s1', kind: 'claude-code', machine: 'pc', project: 'musik', ...body },
+    });
+  const usage = (output: number) => [{ model: 'claude-opus-5-5', input: 10, output, cacheWrite: 0, cacheWrite1h: 0, cacheRead: 100 }];
+  const read = async (days?: number) => {
+    const res = await call(reporting, 'GET', `/api/v1/reporting${days ? `?days=${days}` : ''}`, asOwner);
+    expect(res.status).toBe(200);
+    return res.body as ReportingResponse;
+  };
+
+  it('returns requests with the story and work type they ended on, and token usage', async () => {
+    await send({ story: 'AM-7: Level 3 blockout', workType: 'level-design', prompt: 'Block out level 3', turn: 'start', state: 'working' });
+    tick(600);
+    await send({ turn: 'end', state: 'idle', usage: usage(500) });
+    const body = await read();
+    expect(body.turns).toEqual([
+      {
+        agentId: 'pc/claude/s1',
+        startedAt: '2026-10-10T12:00:00.000Z',
+        endedAt: '2026-10-10T12:10:00.000Z',
+        outcome: 'finished',
+        prompt: 'Block out level 3',
+        story: 'AM-7: Level 3 blockout',
+        workType: 'level-design',
+      },
+    ]);
+    expect(body.usage).toEqual([{ agentId: 'pc/claude/s1', at: '2026-10-10T12:10:00.000Z', usage: usage(500), story: null, workType: null }]);
+    expect(body.agents[0]).toMatchObject({ id: 'pc/claude/s1', project: 'musik', workType: 'level-design' });
+  });
+
+  it('counts a request still running', async () => {
+    await send({ prompt: 'Add tests', turn: 'start', state: 'working' });
+    tick(60);
+    expect((await read()).turns).toMatchObject([{ outcome: 'running', endedAt: null, prompt: 'Add tests' }]);
+  });
+
+  it('keeps reporting events after other events expire', async () => {
+    await send({ prompt: 'One', turn: 'start', state: 'working', activity: 'Starting' });
+    tick(60);
+    await send({ turn: 'end', state: 'idle', usage: usage(5) });
+    tick(40 * 86_400);
+    await send({ activity: 'Later' }); // the store prunes when events are added
+    const events = await ctx.store.listEvents('pc/claude/s1', 50);
+    expect(events.map((e) => e.type).sort()).toEqual(['report', 'state', 'turn']);
+    expect((await read(60)).turns).toHaveLength(1);
+  });
+
+  it('refuses a window it does not keep', async () => {
+    const res = await call(reporting, 'GET', '/api/v1/reporting?days=400', asOwner);
+    expect(res.status).toBe(400);
+  });
+
+  it('refuses unknown work types and bad token counts', async () => {
+    expect((await send({ workType: 'napping' })).status).toBe(400);
+    expect((await send({ usage: [{ model: 'x', output: -1 }] })).status).toBe(400);
   });
 });
 

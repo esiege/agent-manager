@@ -10,6 +10,8 @@ import { createKey, listKeys, revokeKey } from './handlers/keys';
 import { deleteAlert, listAlerts, saveAlert, sweepAlerts, testAlert } from './handlers/alerts';
 import { ackMessage, inbox, sendMessage } from './handlers/messages';
 import { hideAgents } from './handlers/hide';
+import { reporting } from './handlers/reporting';
+import { perfSamples, perfSession, perfSessionDetail, perfSessions } from './handlers/perf';
 
 function register(name: string, method: 'GET' | 'POST', route: string, handler: Handler) {
   app.http(name, {
@@ -48,6 +50,12 @@ register('agents', 'GET', 'v1/agents', agents);
 register('agent', 'GET', 'v1/agent', agent);
 register('getLogs', 'GET', 'v1/logs', getLogs);
 register('hideAgents', 'POST', 'v1/agents/hide', hideAgents);
+register('reporting', 'GET', 'v1/reporting', reporting);
+
+register('perfSession', 'POST', 'v1/perf/session', perfSession);
+register('perfSamples', 'POST', 'v1/perf/samples', perfSamples);
+register('perfSessions', 'GET', 'v1/perf/sessions', perfSessions);
+register('perfSessionDetail', 'GET', 'v1/perf/session', perfSessionDetail);
 
 register('listKeys', 'GET', 'v1/keys', listKeys);
 register('createKey', 'POST', 'v1/keys', createKey);

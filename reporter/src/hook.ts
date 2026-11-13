@@ -7,7 +7,7 @@ import { describeTool } from './describe';
 import type { CommitInfo } from './git';
 import { resultFrom } from './result';
 import type { SessionContext, SessionRecord, SubagentRecord } from './sessions';
-import type { TranscriptInfo } from './transcript';
+import type { TranscriptInfo, UsageRead } from './transcript';
 
 /** The stdin fields agentctl reads. Everything else Claude Code sends is ignored and never leaves the PC. */
 export interface HookInput {
@@ -18,6 +18,8 @@ export interface HookInput {
   permission_mode?: string;
   agent_id?: string;
   agent_type?: string;
+  /** SubagentStop: the sub-agent's own transcript, for its token usage. */
+  agent_transcript_path?: string;
   source?: string;
   model?: string;
   session_title?: string;
@@ -66,6 +68,8 @@ export interface PlanContext {
   commit: (cwd: string, sha: string) => CommitInfo | null;
   /** What the transcript says; read at most once per event. */
   transcript: (path: string | undefined) => TranscriptInfo;
+  /** The tokens used in a transcript from a byte offset on (transcript.ts readUsage). */
+  usage: (path: string | undefined, offset: number | undefined, subagent?: boolean) => UsageRead | null;
   /** The session's context.json. */
   context: SessionContext;
   /** False when the config keeps prompts on this PC. */
@@ -77,6 +81,12 @@ const PLAIN_EVENTS = new Set(['Notification', 'SessionEnd', 'StopFailure', 'Suba
 
 const WAITING_NOTIFICATIONS = new Set(['permission_prompt', 'elicitation_dialog', 'elicitation_url_dialog', 'agent_needs_input']);
 const IDLE_NOTIFICATIONS = new Set(['idle_prompt']);
+
+/**
+ * Events that send the tokens used since the last count: the end of a request, a new prompt
+ * (which also covers a request cut off with Esc), and the end of the session.
+ */
+const USAGE_EVENTS = new Set(['Stop', 'UserPromptSubmit', 'SessionEnd']);
 
 const END_REASONS: Record<string, string> = {
   clear: 'Session cleared',
@@ -149,7 +159,20 @@ export function planHook(
   // ---- Story, task and prompt (context.ts) ----
   const main = !input.agent_id;
   let context = ctx.context;
-  const what: Pick<ReportInput, 'story' | 'task' | 'prompt' | 'turn' | 'result'> = {};
+  const what: Pick<ReportInput, 'story' | 'task' | 'prompt' | 'turn' | 'result' | 'workType' | 'usage'> = {};
+  if (main && input.transcript_path) {
+    // The count starts where the last one ended, in this transcript. A (re)started session starts
+    // counting from now; a compacted one carries on.
+    const sameFile = context.usagePath === input.transcript_path;
+    const restart = event === 'SessionStart' && input.source !== 'compact';
+    if (restart || !sameFile || USAGE_EVENTS.has(event)) {
+      const read = ctx.usage(input.transcript_path, restart || !sameFile ? undefined : context.usageOffset);
+      if (read) {
+        if (read.offset !== context.usageOffset || !sameFile) context = { ...context, usagePath: input.transcript_path, usageOffset: read.offset };
+        if (read.usage.length) what.usage = read.usage;
+      }
+    }
+  }
   if (main && !PLAIN_EVENTS.has(event)) {
     let transcript: TranscriptInfo | null = null;
     const read = () => (transcript ??= ctx.transcript(input.transcript_path));
@@ -181,6 +204,7 @@ export function planHook(
     const title = input.session_title?.trim() || read().title;
     const story = context.story ?? storyFrom(ctx.branch(cwd), title);
     if (story) what.story = story;
+    if (context.workType) what.workType = context.workType;
   }
 
   const base = (): ReportInput => ({
@@ -267,7 +291,10 @@ export function planHook(
     case 'SubagentStop':
       if (input.agent_id) {
         plan.subagentStop = input.agent_id;
-        plan.reports.push(subReport(input.agent_id, input.agent_type, 'stopped', 'Finished'));
+        const stopped = subReport(input.agent_id, input.agent_type, 'stopped', 'Finished');
+        const usage = ctx.usage(input.agent_transcript_path, 0, true)?.usage;
+        if (usage?.length) stopped.report.usage = usage;
+        plan.reports.push(stopped);
       }
       break;
     case 'SessionEnd':

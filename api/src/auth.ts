@@ -1,7 +1,7 @@
 // Two kinds of caller: the owner, signed in through Static Web Apps, and agents, using machine keys.
 
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { OWNER_WRITE_HEADER, type MachineKey } from '@agent-manager/shared';
+import { OWNER_WRITE_HEADER, type KeyScope, type MachineKey } from '@agent-manager/shared';
 import { HttpError, type Ctx, type Req } from './http';
 import { inAzure } from './store';
 import type { StoredKey } from './store/types';
@@ -61,6 +61,15 @@ export function requireOwnerWrite(req: Req, ctx: Ctx): Owner {
 
 // ---- Machine keys ----
 
+/**
+ * For reads that agents make too: the signed-in owner, or a machine key (not a game key).
+ * A call that carries a key is judged by the key alone.
+ */
+export async function requireOwnerOrKey(req: Req, ctx: Ctx): Promise<void> {
+  if (req.headers.get('x-agent-manager-key')) await requireKey(req, ctx);
+  else requireOwner(req, ctx);
+}
+
 const KEY_FORMAT = /^am_([a-z0-9]{10})_([A-Za-z0-9_-]{43})$/;
 
 export function hashSecret(secret: string): string {
@@ -75,7 +84,7 @@ export function newKeySecret(): { id: string; secret: string } {
 }
 
 export function publicKey(k: StoredKey): MachineKey {
-  return { id: k.id, name: k.name, createdAt: k.createdAt, lastUsedAt: k.lastUsedAt, revokedAt: k.revokedAt };
+  return { id: k.id, name: k.name, scope: k.scope ?? 'all', createdAt: k.createdAt, lastUsedAt: k.lastUsedAt, revokedAt: k.revokedAt };
 }
 
 // Verified keys are cached briefly so each report doesn't cost a database read.
@@ -88,8 +97,9 @@ const keyCache = new Map<string, { key: StoredKey; until: number }>();
  * The machine key, or a 401 that says what's wrong. Agents send it in X-Agent-Manager-Key:
  * Static Web Apps replaces the Authorization header before it reaches the API, so
  * "Authorization: Bearer" only works off Azure.
+ * `allow` is the narrowest scope the call accepts: a game key ("perf") only passes calls that allow it.
  */
-export async function requireKey(req: Req, ctx: Ctx): Promise<StoredKey> {
+export async function requireKey(req: Req, ctx: Ctx, allow: KeyScope = 'all'): Promise<StoredKey> {
   const secret =
     req.headers.get('x-agent-manager-key')?.trim() ||
     /^Bearer\s+(am_\S+)$/i.exec(req.headers.get('authorization') ?? '')?.[1]?.trim();
@@ -113,6 +123,9 @@ export async function requireKey(req: Req, ctx: Ctx): Promise<StoredKey> {
   }
   if (key.revokedAt) {
     throw new HttpError(401, `This key was revoked on ${key.revokedAt.slice(0, 10)}; make a new one on the Settings tab`);
+  }
+  if (key.scope === 'perf' && allow !== 'perf') {
+    throw new HttpError(403, 'This is a game key: it can only send performance data (/api/v1/perf/session and /api/v1/perf/samples)');
   }
 
   checkRate(id, now);

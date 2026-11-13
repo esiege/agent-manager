@@ -17,7 +17,11 @@ import {
   type LogsQuery,
   type LogsQueryResponse,
   type MachineKey,
+  type KeyScope,
   type MeResponse,
+  type PerfSessionDetailResponse,
+  type PerfSessionsResponse,
+  type ReportingResponse,
 } from '@agent-manager/shared';
 
 /** A failed request. `status` is 0 when the server couldn't be reached. */
@@ -119,12 +123,16 @@ export const api = {
   agents: (days: number, signal?: AbortSignal) => request<AgentsResponse>(`/agents?days=${days}`, { signal }),
   agent: (id: string, signal?: AbortSignal) =>
     request<AgentDetailResponse>(`/agent?${new URLSearchParams({ id }).toString()}`, { signal }),
+  reporting: (days: number, signal?: AbortSignal) => request<ReportingResponse>(`/reporting?days=${days}`, { signal }),
+  perfSessions: (days: number, signal?: AbortSignal) => request<PerfSessionsResponse>(`/perf/sessions?days=${days}`, { signal }),
+  perfSession: (id: string, signal?: AbortSignal) =>
+    request<PerfSessionDetailResponse>(`/perf/session?${new URLSearchParams({ id }).toString()}`, { signal }),
   logs: (query: LogsQuery, signal?: AbortSignal) => {
     const qs = logsQueryString(query);
     return request<LogsQueryResponse>(qs ? `/logs?${qs}` : '/logs', { signal });
   },
   keys: (signal?: AbortSignal) => request<KeysResponse>('/keys', { signal }),
-  createKey: (name: string) => request<CreateKeyResponse>('/keys', { method: 'POST', body: { name } }),
+  createKey: (name: string, scope: KeyScope = 'all') => request<CreateKeyResponse>('/keys', { method: 'POST', body: { name, scope } }),
   revokeKey: (id: string) => request<{ key: MachineKey }>('/keys/revoke', { method: 'POST', body: { id } }),
   alerts: (signal?: AbortSignal) => request<AlertsResponse>('/alerts', { signal }),
   saveAlert: (input: AlertSubscriptionInput) =>

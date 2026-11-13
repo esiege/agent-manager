@@ -373,3 +373,38 @@
     --am-lines: 4;
   }
 }
+
+/* Reporting charts. Colors by job: technical and non-technical work are the first two slots of
+   the categorical palette, stepped for each theme; "other" is muted ink. */
+:root {
+  --am-series-technical: #2a78d6;
+  --am-series-nontechnical: #eb6834;
+  --am-series-other: #898781;
+}
+
+[data-mantine-color-scheme='dark'] {
+  --am-series-technical: #3987e5;
+  --am-series-nontechnical: #d95926;
+}
+
+/* Performance charts use the same slots, named by position: they aren't about kinds of work.
+   The third is the palette's next slot, stepped for each theme. */
+:root,
+[data-mantine-color-scheme='dark'] {
+  --am-series-1: var(--am-series-technical);
+  --am-series-2: var(--am-series-nontechnical);
+}
+
+:root {
+  --am-series-3: #1baf7a;
+}
+
+[data-mantine-color-scheme='dark'] {
+  --am-series-3: #199e70;
+}
+
+@media (min-width: 62em) {
+  .am-span-2 {
+    grid-column: span 2;
+  }
+}

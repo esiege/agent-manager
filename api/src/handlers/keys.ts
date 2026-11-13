@@ -1,6 +1,6 @@
 // Machine keys, managed by the signed-in owner on the Settings tab (U-08).
 
-import type { CreateKeyResponse, KeysResponse, MachineKey } from '@agent-manager/shared';
+import { KEY_SCOPES, type CreateKeyResponse, type KeyScope, type KeysResponse, type MachineKey } from '@agent-manager/shared';
 import { forgetKey, hashSecret, newKeySecret, publicKey, requireOwner, requireOwnerWrite } from '../auth';
 import { HttpError, ok, readJson, type Handler } from '../http';
 
@@ -21,8 +21,11 @@ export const listKeys: Handler = async (req, ctx) => {
 
 export const createKey: Handler = async (req, ctx) => {
   requireOwnerWrite(req, ctx);
-  const name = stringField(readJson(req, MAX_BODY), 'name');
+  const input = readJson(req, MAX_BODY);
+  const name = stringField(input, 'name');
   if (name.length > 60) throw new HttpError(400, 'name must be at most 60 characters');
+  const scope = ((input as { scope?: unknown }).scope ?? 'all') as KeyScope;
+  if (!KEY_SCOPES.includes(scope)) throw new HttpError(400, `scope must be one of ${KEY_SCOPES.join(', ')}`);
 
   const active = (await ctx.store.listKeys()).filter((k) => !k.revokedAt);
   if (active.some((k) => k.name.toLowerCase() === name.toLowerCase())) {
@@ -30,7 +33,7 @@ export const createKey: Handler = async (req, ctx) => {
   }
 
   const { id, secret } = newKeySecret();
-  const key = { id, name, createdAt: ctx.now().toISOString(), lastUsedAt: null, revokedAt: null, hash: hashSecret(secret) };
+  const key = { id, name, scope, createdAt: ctx.now().toISOString(), lastUsedAt: null, revokedAt: null, hash: hashSecret(secret) };
   await ctx.store.putKey(key);
   const body: CreateKeyResponse = { key: publicKey(key), secret };
   return ok(body, 201);

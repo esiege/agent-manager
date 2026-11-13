@@ -7,7 +7,9 @@ import {
   ALERT_EVENTS,
   LIMITS,
   LOG_LEVELS,
+  PERF_SESSION_ID,
   REPORTED_STATES,
+  WORK_TYPES,
   type AgentKind,
   type AlertChannel,
   type AlertEvent,
@@ -16,9 +18,15 @@ import {
   type LogEntryInput,
   type LogLevel,
   type LogsInput,
+  type PerfHitch,
+  type PerfSampleInput,
+  type PerfSamplesInput,
+  type PerfSessionInput,
   type ReportedState,
   type ReportInput,
+  type TokenUsage,
   type WorkResultInput,
+  type WorkType,
 } from './contract';
 
 export type Result<T> = { ok: true; value: T; warnings: string[] } | { ok: false; error: string };
@@ -42,7 +50,7 @@ class Reader {
     return this.path ? `${this.path}.${key}` : key;
   }
 
-  private get(key: string): unknown {
+  get(key: string): unknown {
     this.seen.add(key);
     return this.obj[key];
   }
@@ -81,6 +89,16 @@ class Reader {
     if (v === undefined) return undefined;
     if (typeof v !== 'number' || !Number.isInteger(v) || v < min || v > max) {
       throw new Invalid(`${this.label(key)} must be a whole number from ${min} to ${max}`);
+    }
+    return v;
+  }
+
+  /** Null counts as absent. */
+  optionalNumber(key: string, min: number, max: number): number | undefined {
+    const v = this.get(key);
+    if (v === undefined || v === null) return undefined;
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max) {
+      throw new Invalid(`${this.label(key)} must be a number from ${min} to ${max}`);
     }
     return v;
   }
@@ -169,6 +187,20 @@ function readResult(raw: Record<string, unknown>, warnings: string[]): WorkResul
   return value;
 }
 
+const TOKEN_FIELDS = ['input', 'output', 'cacheWrite', 'cacheWrite1h', 'cacheRead'] as const;
+
+function readUsage(raw: unknown): TokenUsage[] {
+  if (!Array.isArray(raw)) throw new Invalid('usage must be an array of {model, input, output, cacheWrite, cacheWrite1h, cacheRead}');
+  if (raw.length > LIMITS.usageModels) throw new Invalid(`usage has more than ${LIMITS.usageModels} entries`);
+  return raw.map((entry, i) => {
+    if (!isObject(entry)) throw new Invalid(`usage[${i}] must be a JSON object`);
+    const r = new Reader(entry, `usage[${i}]`);
+    const value: TokenUsage = { model: r.requiredString('model', LIMITS.nameLength), input: 0, output: 0, cacheWrite: 0, cacheWrite1h: 0, cacheRead: 0 };
+    for (const field of TOKEN_FIELDS) value[field] = r.optionalInt(field, 0, 1_000_000_000_000) ?? 0;
+    return value;
+  });
+}
+
 const KIND_HINT = `kind must be one of ${AGENT_KINDS.join(', ')}`;
 
 export function validateReport(body: unknown): Result<ReportInput> {
@@ -193,6 +225,9 @@ export function validateReport(body: unknown): Result<ReportInput> {
     const turn = r.oneOf<'start' | 'end'>('turn', ['start', 'end'], false);
     const rawResult = r.optionalObject('result');
     const result = rawResult ? readResult(rawResult, r.warnings) : undefined;
+    const workType = r.get('workType') === null ? null : r.oneOf<WorkType>('workType', WORK_TYPES, false);
+    const rawUsage = r.get('usage');
+    const usage = rawUsage === undefined || rawUsage === null ? undefined : readUsage(rawUsage);
     const link = r.optionalLink('link');
     const details = { ...(r.optionalObject('details') ?? {}) };
     const lostAfterSeconds = r.optionalInt('lostAfterSeconds', 30, 7 * 24 * 3600);
@@ -215,6 +250,8 @@ export function validateReport(body: unknown): Result<ReportInput> {
     if (prompt !== undefined) value.prompt = prompt;
     if (turn !== undefined) value.turn = turn;
     if (result !== undefined) value.result = result;
+    if (workType !== undefined) value.workType = workType;
+    if (usage?.length) value.usage = usage;
     if (link !== undefined) value.link = link;
     if (lostAfterSeconds !== undefined) value.lostAfterSeconds = lostAfterSeconds;
     if (instructionsVersion !== undefined) value.instructionsVersion = instructionsVersion;
@@ -302,6 +339,149 @@ export function validateLogs(body: unknown): Result<LogsInput> {
     const extra = r.unknownKeys();
     if (extra.length) r.warnings.push(`Unknown field(s) ${extra.join(', ')} were ignored`);
     const value: LogsInput = { entries };
+    if (test !== undefined) value.test = test;
+    return value;
+  });
+}
+
+// ---- Performance data, sent by games ----
+
+const SESSION_ID_HINT = 'sessionId is required: 8 to 64 letters, digits, dots, dashes or underscores (a UUID works)';
+
+function readSessionId(r: Reader): string {
+  const v = r.get('sessionId');
+  if (typeof v !== 'string' || !PERF_SESSION_ID.test(v)) throw new Invalid(SESSION_ID_HINT);
+  return v;
+}
+
+const SESSION_TEXT = ['build', 'platform', 'cpu', 'gpu', 'os', 'resolution'] as const;
+
+export function validatePerfSession(body: unknown): Result<PerfSessionInput> {
+  return run(body, 'a performance session', (r) => {
+    const value: PerfSessionInput = {
+      sessionId: readSessionId(r),
+      game: r.requiredString('game', LIMITS.nameLength),
+      machine: r.requiredString('machine', LIMITS.nameLength),
+    };
+    for (const field of SESSION_TEXT) {
+      const v = r.optionalString(field, LIMITS.nameLength, { truncate: true });
+      if (v !== undefined) value[field] = v?.trim() || null;
+    }
+    const whole = (field: 'cpuCores' | 'ramMb' | 'vramMb' | 'refreshHz', max: number) => {
+      const v = r.optionalNumber(field, 0, max);
+      if (v !== undefined) value[field] = Math.round(v);
+    };
+    whole('cpuCores', 4096);
+    whole('ramMb', 100_000_000);
+    whole('vramMb', 100_000_000);
+    whole('refreshHz', 10_000);
+    const loadSeconds = r.optionalNumber('loadSeconds', 0, 86_400);
+    if (loadSeconds !== undefined) value.loadSeconds = loadSeconds;
+    const details = { ...(r.optionalObject('details') ?? {}) };
+    const ended = r.optionalBool('ended');
+    const test = r.optionalBool('test');
+
+    const extra = r.unknownKeys();
+    for (const k of extra) details[k] = (body as Record<string, unknown>)[k];
+    if (extra.length) r.warnings.push(`Unknown field(s) ${extra.join(', ')} were kept in details`);
+    if (Object.keys(details).length) value.details = details;
+    if (ended !== undefined) value.ended = ended;
+    if (test !== undefined) value.test = test;
+    return value;
+  });
+}
+
+const SAMPLE_MS = ['frameMsP50', 'frameMsP95', 'frameMsP99', 'frameMsMax', 'cpuMs', 'gameMs', 'renderMs', 'gpuMs', 'pingMs'] as const;
+/** Ten minutes: longer than any frame or ping worth charting. */
+const MAX_MS = 600_000;
+/** A session can run this long (30 days). */
+const MAX_T = 30 * 86_400;
+
+function readPerfSample(raw: unknown, i: number, warnings: string[]): PerfSampleInput {
+  const path = `samples[${i}]`;
+  if (!isObject(raw)) throw new Invalid(`${path} must be a JSON object`);
+  const r = new Reader(raw, path);
+  const required = (key: 't' | 'seconds' | 'frames', min: number, max: number) => {
+    const v = r.optionalNumber(key, min, max);
+    if (v === undefined) throw new Invalid(`${path}.${key} is required and must be a number`);
+    return v;
+  };
+  const sample: PerfSampleInput = { t: required('t', 0, MAX_T), seconds: required('seconds', 0, 3600), frames: Math.round(required('frames', 0, 100_000_000)) };
+  if (sample.seconds === 0) throw new Invalid(`${path}.seconds must be more than 0`);
+
+  for (const field of SAMPLE_MS) {
+    const v = r.optionalNumber(field, 0, MAX_MS);
+    if (v !== undefined) sample[field] = v;
+  }
+  const hitches = r.optionalNumber('hitches', 0, 100_000_000);
+  if (hitches !== undefined) sample.hitches = Math.round(hitches);
+  for (const field of ['memoryMb', 'vramMb', 'drawCalls'] as const) {
+    const v = r.optionalNumber(field, 0, 1_000_000_000);
+    if (v !== undefined) sample[field] = v;
+  }
+  const scene = r.optionalString('scene', LIMITS.nameLength, { truncate: true });
+  if (scene?.trim()) sample.scene = scene.trim();
+
+  const metrics: Record<string, number> = {};
+  const add = (name: string, v: unknown, from: string) => {
+    if (typeof v !== 'number' || !Number.isFinite(v)) throw new Invalid(`${from} must be a number`);
+    if (name.length > LIMITS.perfMetricNameLength) throw new Invalid(`${from}: the name is longer than ${LIMITS.perfMetricNameLength} characters`);
+    metrics[name] = v;
+  };
+  for (const [name, v] of Object.entries(r.optionalObject('metrics') ?? {})) add(name, v, `${path}.metrics.${name}`);
+  // A number under a name we don't know is a custom metric; anything else is dropped.
+  const dropped: string[] = [];
+  for (const k of r.unknownKeys()) {
+    if (typeof raw[k] === 'number' && Number.isFinite(raw[k])) add(k, raw[k], `${path}.${k}`);
+    else dropped.push(k);
+  }
+  if (dropped.length && i === 0) warnings.push(`Unknown field(s) ${dropped.join(', ')} on samples were ignored (only numbers are kept, as metrics)`);
+  const names = Object.keys(metrics);
+  if (names.length > LIMITS.perfMetrics) throw new Invalid(`${path} has ${names.length} custom metrics; the limit is ${LIMITS.perfMetrics}`);
+  if (names.length) sample.metrics = metrics;
+  warnings.push(...r.warnings);
+  return sample;
+}
+
+function readPerfHitch(raw: unknown, i: number, warnings: string[]): PerfHitch {
+  const path = `hitchEvents[${i}]`;
+  if (!isObject(raw)) throw new Invalid(`${path} must be a JSON object`);
+  const r = new Reader(raw, path);
+  const t = r.optionalNumber('t', 0, MAX_T);
+  const frameMs = r.optionalNumber('frameMs', 0, MAX_MS);
+  if (t === undefined || frameMs === undefined) throw new Invalid(`${path} needs t and frameMs, both numbers`);
+  const hitch: PerfHitch = { t, frameMs };
+  for (const field of ['gameMs', 'renderMs', 'gpuMs'] as const) {
+    const v = r.optionalNumber(field, 0, MAX_MS);
+    if (v !== undefined) hitch[field] = v;
+  }
+  const scene = r.optionalString('scene', LIMITS.nameLength, { truncate: true });
+  if (scene?.trim()) hitch.scene = scene.trim();
+  const extra = r.unknownKeys();
+  if (extra.length && i === 0) warnings.push(`Unknown field(s) ${extra.join(', ')} on hitchEvents were ignored`);
+  return hitch;
+}
+
+export function validatePerfSamples(body: unknown): Result<PerfSamplesInput> {
+  return run(body, 'performance samples', (r) => {
+    const sessionId = readSessionId(r);
+    const rawHitches = r.get('hitchEvents');
+    if (rawHitches !== undefined && rawHitches !== null && !Array.isArray(rawHitches)) throw new Invalid('hitchEvents must be an array');
+    const hitchEvents = ((rawHitches as unknown[] | null | undefined) ?? []).map((h, i) => readPerfHitch(h, i, r.warnings));
+    if (hitchEvents.length > LIMITS.perfHitchesPerCall) {
+      throw new Invalid(`hitchEvents has ${hitchEvents.length} items; send at most ${LIMITS.perfHitchesPerCall} per call`);
+    }
+    const raw = r.get('samples') === undefined && hitchEvents.length ? [] : r.array('samples');
+    if (raw.length === 0 && hitchEvents.length === 0) throw new Invalid('samples must hold at least one sample');
+    if (raw.length > LIMITS.perfSamplesPerCall) {
+      throw new Invalid(`samples has ${raw.length} items; send at most ${LIMITS.perfSamplesPerCall} per call`);
+    }
+    const samples = raw.map((s, i) => readPerfSample(s, i, r.warnings));
+    const test = r.optionalBool('test');
+    const extra = r.unknownKeys();
+    if (extra.length) r.warnings.push(`Unknown field(s) ${extra.join(', ')} were ignored`);
+    const value: PerfSamplesInput = { sessionId, samples };
+    if (hitchEvents.length) value.hitchEvents = hitchEvents;
     if (test !== undefined) value.test = test;
     return value;
   });

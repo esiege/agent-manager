@@ -1,6 +1,6 @@
 # Agent Manager: how to report in
 
-Instructions version: **2** · Updated: **2026-10-11**
+Instructions version: **3** · Updated: **2026-10-26**
 
 Already set up on this PC? Follow `$MANAGER_URL/update.md` instead: it checks whether you're on the latest and updates if not.
 
@@ -48,14 +48,16 @@ node "$HOME\.agent-manager\agentctl.js" doctor
 
 Tell them: the key must already be saved as `AGENT_MANAGER_KEY` (made on the Settings tab); install finds it on its own, so it never goes on the command line; and `doctor` should show `Hooks: installed` and `Connection: OK`. Use the bash commands from step 2 instead if this PC isn't Windows.
 
-What each session reports on its own: its **story** (the ticket in the branch name, such as `AM-123`, with the session's title, or the title alone), its **task** (the in-progress item of its todo list, or the first line of what it last said), and the person's **prompt**. When a request ends with a new commit, it also reports the **finished work**: the commit's subject and link, the prompt, and the agent's final message. To keep prompts on the PC, add `"prompts": false` to `~/.agent-manager/config.json`.
+What each session reports on its own: its **story** (the ticket in the branch name, such as `AM-123`, with the session's title, or the title alone), its **task** (the in-progress item of its todo list, or the first line of what it last said), and the person's **prompt**. When a request ends with a new commit, it also reports the **finished work**: the commit's subject and link, the prompt, and the agent's final message. It also reports the **tokens** each request and sub-agent used, per model (counts only, read from Claude Code's transcript on the PC), for the Reporting tab. To keep prompts on the PC, add `"prompts": false` to `~/.agent-manager/config.json`.
 
-Recommended: add this to the project's or the user's `CLAUDE.md`, so agents name their story and write a proper report of finished work:
+Recommended: add this to the project's or the user's `CLAUDE.md`, so agents name their story and the kind of work it is, and write a proper report of finished work:
 
 ```markdown
 ## Agent Manager
 - When you start on a story or ticket, run
-  `node "$HOME/.agent-manager/agentctl.js" story "<KEY-123: the story's title, or one line on the goal>"`.
+  `node "$HOME/.agent-manager/agentctl.js" story "<KEY-123: the story's title, or one line on the goal>" --type <kind of work>`,
+  where the kind of work is one of: feature, bugfix, testing, refactor, infra, docs, level-design,
+  game-design, writing, art, community, planning, other. Run it again with the new type when the work changes kind.
 - When you finish a request that changed files: commit it (one commit, with a clear subject: it
   becomes the report's name), then report it:
   `node "$HOME/.agent-manager/agentctl.js" done "<2 to 5 short Markdown bullets: what you did>" --check "<what the person should see now>" --check "..."`
@@ -66,6 +68,22 @@ Recommended: add this to the project's or the user's `CLAUDE.md`, so agents name
 `agentctl done` refuses while there are uncommitted changes, so the report always links to the work (`--uncommitted` sends it anyway). `agentctl task "<text>"` pins the technical step until the next prompt, and `agentctl status "<text>"` sets the one-line activity.
 
 To remove it: `node "$HOME/.agent-manager/agentctl.js" uninstall`.
+
+### Messages from Agent Manager
+
+The person can send a message to a running session from its page in Agent Manager. agentctl on the session's PC picks it up within about 5 seconds and posts it into the session. This is off by default and is turned on separately on each PC, so turning it on for one PC does nothing for the others:
+
+```bash
+node "$HOME/.agent-manager/agentctl.js" install --allow-messages
+```
+
+(`--no-messages` turns it off again.) A session can take messages only after it has run a hook since messages were turned on, so the person should send it one prompt first. A session that skips permission prompts never takes messages.
+
+If a message stays at "Waiting for the PC" for more than a few seconds, agentctl on that PC isn't collecting it. After 10 minutes it shows as "Expired", without saying why. Run `node "$HOME/.agent-manager/agentctl.js" doctor` **on the PC the session runs on**, and check:
+
+- `Messages: off`: run the install command above, then send the session a prompt.
+- `Messages: on; 0 of N open sessions can take one`: send that session a prompt so its hook saves its inbox, then send the message again.
+- Messages are on and the session can take one, but nothing arrives: the PC may have an old `agentctl.js` (download it again as in step 2), or its background daemon may not be running. Look for `inbox:` lines in `~/.agent-manager/reporter.log`.
 
 ## OpenClaw
 
@@ -97,6 +115,8 @@ Two calls cover most agents: **report** your state, and send **logs**. Every cal
 | `activity` | no | One line: what you're doing now (up to 500 characters). |
 | `story` | no | The story or goal you're on: a ticket and its title (`AM-123: Export to CSV`), or a one-line summary (up to 300). |
 | `task` | no | The technical step you're on now (up to 300). |
+| `workType` | no | The kind of work, for the Reporting tab: `feature`, `bugfix`, `testing`, `refactor`, `infra`, `docs`, `level-design`, `game-design`, `writing`, `art`, `community`, `planning` or `other`. |
+| `usage` | no | Tokens used since your last report that carried usage, one entry per model: `[{"model", "input", "output", "cacheWrite", "cacheWrite1h", "cacheRead"}]`. The counts don't overlap: `input` leaves out cache reads and writes. |
 | `prompt` | no | The person's latest request to you (up to 2,000). Values that look like secrets are masked. |
 | `turn` | no | `start` when a request starts, `end` when you've finished it. A request that fails (`state: failed`), stops, or goes silent before `end` shows as unfinished. |
 | `result` | no | The report of finished work: `{"title", "summary" (Markdown), "checks": ["what the person should see"], "commitUrl", "commit", "branch", "pushed"}`. `title` and `summary` are required. |
@@ -112,12 +132,12 @@ curl:
 ```bash
 curl -fsS -X POST "$MANAGER_URL/api/v1/report" \
   -H "X-Agent-Manager-Key: $AGENT_MANAGER_KEY" -H "Content-Type: application/json" \
-  -d '{"agentId":"openclaw/community-web","kind":"openclaw","machine":"claw-host","name":"Community manager (web)","state":"working","activity":"Answering new comments","lostAfterSeconds":300,"instructionsVersion":2}'
+  -d '{"agentId":"openclaw/community-web","kind":"openclaw","machine":"claw-host","name":"Community manager (web)","state":"working","activity":"Answering new comments","lostAfterSeconds":300,"instructionsVersion":3}'
 ```
 
 PowerShell:
 ```powershell
-$body = @{ agentId = 'gma/functions'; kind = 'service'; machine = 'azure'; name = 'Game Master Assistant'; state = 'working'; activity = 'Serving requests'; instructionsVersion = 2 } | ConvertTo-Json
+$body = @{ agentId = 'gma/functions'; kind = 'service'; machine = 'azure'; name = 'Game Master Assistant'; state = 'working'; activity = 'Serving requests'; instructionsVersion = 3 } | ConvertTo-Json
 Invoke-RestMethod -Method Post "$MANAGER_URL/api/v1/report" -Headers @{ "X-Agent-Manager-Key" = $env:AGENT_MANAGER_KEY } -ContentType 'application/json' -Body $body
 ```
 
@@ -136,7 +156,7 @@ def report(manager_url: str, **fields) -> dict:
         return json.load(res)
 
 report("https://agents.example.net", agentId="openclaw/community-game", kind="openclaw", machine="claw-host",
-       state="working", activity="Posted patch notes for 1.4", link="https://example.com/news/1-4", instructionsVersion=2)
+       state="working", activity="Posted patch notes for 1.4", link="https://example.com/news/1-4", instructionsVersion=3)
 ```
 
 The answer includes `agentUrl`, the agent's page in Agent Manager, and `warnings` for anything that was adjusted (for example a field that was too long).
@@ -166,6 +186,10 @@ Values that look like keys or tokens are masked when stored, but don't rely on i
 ### Heartbeat for many agents: `POST $MANAGER_URL/api/v1/heartbeat`
 
 If one process watches several agents of one kind on a machine, it can send `{"machine": "...", "kind": "...", "agentIds": ["...", "..."]}` every minute instead of a report per agent. Listed agents stay alive. Agents of that machine and kind that aren't listed are marked stopped. Ids Agent Manager has never seen come back in `stored.unknown`, so you can send a full report for each.
+
+## Performance data from games
+
+A game or app you build can send its frame rate, frame times and memory from every machine it runs on, for the Performance tab. That uses its own two calls and its own kind of key: follow `$MANAGER_URL/performance.md`. To read what games have sent, run `node "$HOME/.agent-manager/agentctl.js" perf` (one line a session) or `perf <sessionId>` (everything about one, as JSON).
 
 ## Check that it works
 

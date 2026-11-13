@@ -6,7 +6,10 @@ import { splitChecks } from '../src/result';
 import { planHook, type HookInput, type PlanContext } from '../src/hook';
 import type { SessionRecord } from '../src/sessions';
 import { hasAgentctlHooks, withAgentctlHooks, withoutAgentctlHooks } from '../src/settings';
-import { firstLine, NO_TRANSCRIPT, parseTranscript } from '../src/transcript';
+import { mkdtempSync, writeFileSync, appendFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { firstLine, NO_TRANSCRIPT, parseTranscript, parseUsage, readUsage } from '../src/transcript';
 
 const ctx: PlanContext = {
   machine: 'pc-studio',
@@ -16,6 +19,7 @@ const ctx: PlanContext = {
   project: () => 'musik',
   branch: () => 'main',
   transcript: () => NO_TRANSCRIPT,
+  usage: () => null,
   context: {},
   sendPrompts: true,
   head: () => null,
@@ -312,8 +316,8 @@ describe('report of finished work', () => {
   });
 
   it('links commits on known hosts', () => {
-    expect(commitWebUrl('git@github.com:esiege/agent-manager.git', 'abc')).toBe('https://github.com/esiege/agent-manager/commit/abc');
-    expect(commitWebUrl('https://github.com/esiege/agent-manager', 'abc')).toBe('https://github.com/esiege/agent-manager/commit/abc');
+    expect(commitWebUrl('git@github.com:octocat/agent-manager.git', 'abc')).toBe('https://github.com/octocat/agent-manager/commit/abc');
+    expect(commitWebUrl('https://github.com/octocat/agent-manager', 'abc')).toBe('https://github.com/octocat/agent-manager/commit/abc');
     expect(commitWebUrl('https://gitlab.com/g/p.git', 'abc')).toBe('https://gitlab.com/g/p/-/commit/abc');
     expect(commitWebUrl('https://me@dev.azure.com/org/proj/_git/repo', 'abc')).toBe('https://dev.azure.com/org/proj/_git/repo/commit/abc');
     expect(commitWebUrl('C:/repos/local', 'abc')).toBeNull();
@@ -355,5 +359,68 @@ describe('settings', () => {
     const before = { hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [theirs] }] } };
     expect(withoutAgentctlHooks(withAgentctlHooks(before, node, script))).toEqual(before);
     expect(withoutAgentctlHooks(withAgentctlHooks({}, node, script))).toEqual({});
+  });
+});
+
+describe('token usage', () => {
+  const assistant = (id: string, usage: Record<string, unknown>, extra: Record<string, unknown> = {}) =>
+    JSON.stringify({ type: 'assistant', ...extra, message: { id, model: 'claude-opus-5-5', role: 'assistant', usage } });
+  const u = { input_tokens: 2, output_tokens: 40, cache_creation_input_tokens: 1000, cache_read_input_tokens: 5000, cache_creation: { ephemeral_1h_input_tokens: 1000 } };
+
+  it('counts each message once, at its largest, and skips sidechain lines', () => {
+    const text = [
+      assistant('m1', { ...u, output_tokens: 10 }),
+      assistant('m1', u), // the same message's next content block
+      assistant('m2', { input_tokens: 1, output_tokens: 5 }),
+      assistant('m3', { output_tokens: 99 }, { isSidechain: true }),
+      JSON.stringify({ type: 'user', message: { content: 'hi' } }),
+      JSON.stringify({ type: 'assistant', message: { id: 'm4', usage: { output_tokens: 7 } } }), // no model: skipped
+    ].join('\n');
+    expect(parseUsage(text)).toEqual([{ model: 'claude-opus-5-5', input: 3, output: 45, cacheWrite: 1000, cacheWrite1h: 1000, cacheRead: 5000 }]);
+    expect(parseUsage(text, true)[0]!.output).toBe(144);
+  });
+
+  it('reads on from where the last count ended, leaving a half-written line', () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'am-usage-')), 't.jsonl');
+    writeFileSync(file, `${assistant('old', { output_tokens: 1000 })}\n`);
+    const first = readUsage(file, undefined)!;
+    expect(first.usage).toEqual([]); // history before counting started isn't counted
+
+    const line = assistant('new', { output_tokens: 3 });
+    appendFileSync(file, `${line}\n${line.slice(0, 20)}`);
+    const second = readUsage(file, first.offset)!;
+    expect(second.usage.map((x) => x.output)).toEqual([3]);
+    expect(readUsage(file, second.offset)!.usage).toEqual([]);
+    expect(readUsage(undefined, 0)).toBeNull();
+  });
+
+  it('sends usage with the end of a request and with sub-agents that stop', () => {
+    const read = { usage: [{ model: 'claude-opus-5-5', input: 1, output: 2, cacheWrite: 0, cacheWrite1h: 0, cacheRead: 0 }], offset: 900 };
+    const calls: [string | undefined, number | undefined, boolean | undefined][] = [];
+    const counting: PlanContext = {
+      ...ctx,
+      usage: (path, offset, subagent) => (calls.push([path, offset, subagent]), read),
+      context: { usagePath: 't.jsonl', usageOffset: 100, workType: 'testing' },
+    };
+    const session = started();
+    const stop = planHook(ev('Stop', { transcript_path: 't.jsonl' }), session, [], counting);
+    expect(stop.reports[0]!.report).toMatchObject({ usage: read.usage, workType: 'testing' });
+    expect(stop.context).toMatchObject({ usageOffset: 900 });
+    expect(calls).toEqual([['t.jsonl', 100, undefined]]);
+
+    const tool = planHook(ev('PreToolUse', { transcript_path: 't.jsonl', tool_name: 'Read' }), session, [], counting);
+    expect(tool.reports[0]!.report.usage).toBeUndefined();
+
+    const sub = planHook(ev('SubagentStop', { agent_id: 'a1', agent_type: 'Explore', agent_transcript_path: 'sub.jsonl' }), session, [], counting);
+    expect(sub.reports[0]!.report).toMatchObject({ agentId: `${session.agentId}/a1`, usage: read.usage });
+    expect(calls.at(-1)).toEqual(['sub.jsonl', 0, true]);
+  });
+
+  it('starts counting afresh when a session starts or resumes', () => {
+    const calls: (number | undefined)[] = [];
+    const counting: PlanContext = { ...ctx, usage: (_p, offset) => (calls.push(offset), { usage: [], offset: 5000 }), context: { usagePath: 't.jsonl', usageOffset: 100 } };
+    const plan = planHook(ev('SessionStart', { source: 'resume', transcript_path: 't.jsonl' }), started(), [], counting);
+    expect(calls).toEqual([undefined]);
+    expect(plan.context).toMatchObject({ usageOffset: 5000 });
   });
 });

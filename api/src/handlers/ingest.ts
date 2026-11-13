@@ -98,6 +98,7 @@ export const report: Handler = async (req, ctx) => {
     promptAt: pick(prompt === undefined ? undefined : prompt ? at : null, existing?.promptAt ?? null),
     turn,
     result: pick(workResult ?? undefined, existing?.result ?? null),
+    workType: pick(input.workType, existing?.workType ?? null),
     // Which request a "connection lost" alert went out for (alerts.ts), so it isn't sent twice.
     lostAlertFor: existing?.lostAlertFor ?? null,
     hiddenAt: existing?.hiddenAt ?? null,
@@ -124,11 +125,13 @@ export const report: Handler = async (req, ctx) => {
     task: task ?? null,
     prompt: prompt ?? null,
     result: workResult,
+    ...(input.workType !== undefined ? { workType: input.workType } : {}),
+    ...(input.usage ? { usage: input.usage } : {}),
     link: input.link ?? null,
     details: input.details && Object.keys(input.details).length ? input.details : null,
   };
   const events = [event];
-  if (ended) events.push(turnEvent(agent.id, ended, at, now));
+  if (ended) events.push(turnEvent(agent, ended, at, now));
 
   if (!input.test) {
     await ctx.store.putAgent(agent);
@@ -145,16 +148,19 @@ export const report: Handler = async (req, ctx) => {
   return ok(body);
 };
 
-function turnEvent(agentId: string, turn: AgentTurn, at: string, receivedAt: string): AgentEvent {
+/** A turn that ended, with the story and work type it ended on (for the Reporting tab). */
+function turnEvent(agent: Agent, turn: AgentTurn, at: string, receivedAt: string): AgentEvent {
   const what = { finished: 'Finished the request', failed: 'Request failed', interrupted: 'Request cut off', running: 'Request started' }[turn.outcome];
   return {
     id: randomUUID(),
-    agentId,
+    agentId: agent.id,
     type: 'turn',
     at,
     receivedAt,
     state: null,
     activity: turn.reason ? `${what}: ${turn.reason}` : what,
+    story: agent.story,
+    workType: agent.workType ?? null,
     turn,
     link: null,
     details: null,
@@ -186,7 +192,7 @@ export const heartbeat: Handler = async (req, ctx) => {
       stopped.push(agent.id);
       const activity = `No longer running on ${input.machine}`;
       const { turn, ended } = nextTurn(agent.turn ?? null, { state: 'stopped', activity: 'Closed' }, undefined, now);
-      if (ended) events.push(turnEvent(agent.id, ended, now, now));
+      if (ended) events.push(turnEvent(agent, ended, now, now));
       // lastReportAt moves too, so a late report from before the stop can't revive it.
       writes.push({ ...agent, state: 'stopped', activity, turn, endedAt: now, lastSeen: now, lastReportAt: now });
       events.push({

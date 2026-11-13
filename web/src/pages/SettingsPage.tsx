@@ -1,7 +1,7 @@
 // U-08: machine keys. Make one per PC, see when each was last used, revoke.
 
-import { LIMITS, type CreateKeyResponse, type MachineKey } from '@agent-manager/shared';
-import { Alert, Badge, Button, Group, Modal, Paper, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
+import { LIMITS, type CreateKeyResponse, type KeyScope, type MachineKey } from '@agent-manager/shared';
+import { Alert, Anchor, Badge, Button, Group, Modal, Paper, Select, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import { IconAlertTriangle, IconKey } from '@tabler/icons-react';
 import { createColumnHelper, getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table';
 import { useMemo, useState, type FormEvent } from 'react';
@@ -29,6 +29,7 @@ const shQuote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 
 function NewKeyForm({ onCreated }: { onCreated: (res: CreateKeyResponse) => void }) {
   const [name, setName] = useState('');
+  const [scope, setScope] = useState<KeyScope>('all');
   const [busy, setBusy] = useState(false);
   const trimmed = name.trim();
 
@@ -37,7 +38,7 @@ function NewKeyForm({ onCreated }: { onCreated: (res: CreateKeyResponse) => void
     if (!trimmed) return;
     setBusy(true);
     try {
-      const res = await api.createKey(trimmed);
+      const res = await api.createKey(trimmed, scope);
       setName('');
       onCreated(res);
     } catch (err) {
@@ -50,15 +51,28 @@ function NewKeyForm({ onCreated }: { onCreated: (res: CreateKeyResponse) => void
   return (
     <Paper withBorder p="md" radius="md" mb="lg" component="form" onSubmit={submit}>
       <Title order={2} size="h4" mb={4}>
-        New machine key
+        New key
       </Title>
       <Text size="sm" c="dimmed" mb="sm">
-        Make one key per PC or service. Agents read it from the AGENT_MANAGER_KEY environment variable.
+        {scope === 'perf'
+          ? "Make one key per game. It goes into the game's builds, so it can only send performance data: nothing else works with it."
+          : 'Make one key per PC or service. Agents read it from the AGENT_MANAGER_KEY environment variable.'}
       </Text>
       <Group align="flex-end" gap="sm">
+        <Select
+          label="For"
+          data={[
+            { value: 'all', label: 'Agents on a PC or service' },
+            { value: 'perf', label: 'A game (performance data only)' },
+          ]}
+          value={scope}
+          onChange={(v) => setScope((v as KeyScope | null) ?? 'all')}
+          allowDeselect={false}
+          w={{ base: '100%', xs: 260 }}
+        />
         <TextInput
           label="Name"
-          placeholder="The PC's name, for example pc-studio"
+          placeholder={scope === 'perf' ? "The game's name, for example musik" : "The PC's name, for example pc-studio"}
           value={name}
           onChange={(e) => setName(e.currentTarget.value)}
           maxLength={LIMITS.nameLength}
@@ -76,13 +90,7 @@ function NewKeyForm({ onCreated }: { onCreated: (res: CreateKeyResponse) => void
 function SecretModal({ created, onClose }: { created: CreateKeyResponse | null; onClose: () => void }) {
   const secret = created?.secret ?? '';
   return (
-    <Modal
-      opened={created !== null}
-      onClose={onClose}
-      title={<Text fw={600}>Key for {created?.key.name}</Text>}
-      size="lg"
-      closeOnClickOutside={false}
-    >
+    <Modal opened={created !== null} onClose={onClose} title={<Text fw={600}>Key for {created?.key.name}</Text>} size="lg" closeOnClickOutside={false}>
       <Stack gap="md">
         <Alert color="yellow" icon={<IconAlertTriangle size={18} />} variant="light">
           Copy the key now. It won&apos;t be shown again.
@@ -93,29 +101,44 @@ function SecretModal({ created, onClose }: { created: CreateKeyResponse | null; 
           </Text>
           <CopyField value={secret} label="Copy key" />
         </div>
-        <div>
-          <Text size="sm" fw={500} mb={4}>
-            Windows (PowerShell)
+        {created?.key.scope === 'perf' ? (
+          <Text size="sm">
+            This is a game key. The game sends it in the <code>X-Agent-Manager-Key</code> header of its performance calls, which{' '}
+            <Anchor href="/performance.md" target="_blank" rel="noopener" size="sm">
+              performance.md
+            </Anchor>{' '}
+            describes. Anyone with the build can read it out, which is why it can do nothing else; revoke it here if it&apos;s misused.
           </Text>
-          <CopyField
-            value={`[Environment]::SetEnvironmentVariable('AGENT_MANAGER_KEY', ${psQuote(secret)}, 'User')`}
-            label="Copy PowerShell line"
-          />
-        </div>
-        <div>
-          <Text size="sm" fw={500} mb={4}>
-            macOS or Linux (bash)
-          </Text>
-          <CopyField value={`export AGENT_MANAGER_KEY=${shQuote(secret)}`} label="Copy bash line" />
-        </div>
-        <Text size="xs" c="dimmed">
-          Open a new terminal afterwards so it sees the variable. In bash, add the line to your shell profile to keep it.
-        </Text>
+        ) : (
+          <EnvLines secret={secret} />
+        )}
         <Group justify="flex-end">
           <Button onClick={onClose}>Done</Button>
         </Group>
       </Stack>
     </Modal>
+  );
+}
+
+function EnvLines({ secret }: { secret: string }) {
+  return (
+    <>
+      <div>
+        <Text size="sm" fw={500} mb={4}>
+          Windows (PowerShell)
+        </Text>
+        <CopyField value={`[Environment]::SetEnvironmentVariable('AGENT_MANAGER_KEY', ${psQuote(secret)}, 'User')`} label="Copy PowerShell line" />
+      </div>
+      <div>
+        <Text size="sm" fw={500} mb={4}>
+          macOS or Linux (bash)
+        </Text>
+        <CopyField value={`export AGENT_MANAGER_KEY=${shQuote(secret)}`} label="Copy bash line" />
+      </div>
+      <Text size="xs" c="dimmed">
+        Open a new terminal afterwards so it sees the variable. In bash, add the line to your shell profile to keep it.
+      </Text>
+    </>
   );
 }
 
@@ -138,9 +161,7 @@ function RevokeModal({ target, onClose, onRevoked }: { target: MachineKey | null
   return (
     <Modal opened={target !== null} onClose={onClose} title={<Text fw={600}>Revoke {target?.name}?</Text>}>
       <Stack gap="md">
-        <Text size="sm">
-          Agents using this key stop reporting at once. They need a new key to report again. This can&apos;t be undone.
-        </Text>
+        <Text size="sm">Whatever uses this key stops reporting at once, and needs a new key to report again. This can&apos;t be undone.</Text>
         <Group justify="flex-end">
           <Button variant="default" onClick={onClose} disabled={busy}>
             Cancel
@@ -166,7 +187,19 @@ export function SettingsPage() {
       col.accessor('name', {
         header: 'Name',
         sortingFn: 'text',
-        cell: ({ getValue }) => <Text fw={500} size="sm">{getValue()}</Text>,
+        cell: ({ getValue }) => (
+          <Text fw={500} size="sm">
+            {getValue()}
+          </Text>
+        ),
+      }),
+      col.accessor('scope', {
+        header: 'For',
+        cell: ({ getValue }) => (
+          <Text size="sm" c={getValue() === 'perf' ? undefined : 'dimmed'}>
+            {getValue() === 'perf' ? 'Game performance' : 'Agents'}
+          </Text>
+        ),
       }),
       col.accessor((k) => Date.parse(k.createdAt), {
         id: 'created',
@@ -239,7 +272,7 @@ export function SettingsPage() {
       />
 
       <Title order={2} size="h4" mb="xs">
-        Machine keys
+        Keys
       </Title>
       {!data ? (
         error ? (
@@ -250,7 +283,7 @@ export function SettingsPage() {
       ) : keys.length === 0 ? (
         <EmptyState title="No keys yet">Make a key above for each PC or service that reports.</EmptyState>
       ) : (
-        <DataTable table={table} label="Machine keys" minWidth={560} />
+        <DataTable table={table} label="Machine keys" minWidth={640} />
       )}
 
       <AlertsSettings />
