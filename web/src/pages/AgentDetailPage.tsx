@@ -8,7 +8,7 @@ import {
   type AgentEvent,
   type AgentView,
   type LogEntry,
-} from '@agent-manager-deluxe/shared';
+} from '@agent-manager-delux/shared';
 import { Alert, Anchor, Box, Button, Group, Paper, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { IconAlertTriangle, IconArrowLeft, IconExternalLink } from '@tabler/icons-react';
 import {
@@ -503,7 +503,7 @@ export function AgentDetailPage() {
   if (!id) {
     return (
       <>
-        <title>Agent · Agent Manager Deluxe</title>
+        <title>Agent · Agent Manager Delux</title>
         <Box mb="md">{back}</Box>
         <EmptyState title="No agent chosen">Pick an agent on the Agents tab.</EmptyState>
       </>
@@ -512,7 +512,7 @@ export function AgentDetailPage() {
 
   return (
     <>
-      <title>{`${data?.agent.name || 'Agent'} · Agent Manager Deluxe`}</title>
+      <title>{`${data?.agent.name || 'Agent'} · Agent Manager Delux`}</title>
       <Group justify="space-between" mb="md">
         {back}
         <UpdatedAgo updatedAt={updatedAt} error={data ? error : null} />

@@ -3,7 +3,7 @@
 // between versions, so this is best effort: anything unexpected gives nulls, never an error.
 
 import { closeSync, fstatSync, openSync, readSync } from 'node:fs';
-import type { TokenUsage } from '@agent-manager-deluxe/shared';
+import type { TokenUsage } from '@agent-manager-delux/shared';
 
 /** Only the end of the transcript is read, so a long session costs the same as a short one. */
 const TAIL_BYTES = 512 * 1024;

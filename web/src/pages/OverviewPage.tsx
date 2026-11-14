@@ -1,6 +1,6 @@
 // U-01: the status (phase 2), counts by state, and what needs the owner.
 
-import { RECENT_DAYS, needsAttention, unfinishedReason, type AgentState, type AgentView } from '@agent-manager-deluxe/shared';
+import { RECENT_DAYS, needsAttention, unfinishedReason, type AgentState, type AgentView } from '@agent-manager-delux/shared';
 import { Anchor, Group, Paper, SimpleGrid, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
 import { Link, useNavigate } from 'react-router';
 import { StateBadge } from '../components/Badges';

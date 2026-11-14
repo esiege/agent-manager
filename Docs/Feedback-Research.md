@@ -12,7 +12,7 @@ The owner had been running feedback by hand across several projects:
 - It emails the owner a link.
 - The owner opens it, answers, and the agent picks the answer up later.
 
-It worked, but it was spread across many emails and pages. The idea for Agent Manager Deluxe:
+It worked, but it was spread across many emails and pages. The idea for Agent Manager Delux:
 
 - **Keep forms minimal.**
 - **Agents message the manager** with the link to the feedback page and any notes they need to add.
@@ -20,7 +20,7 @@ It worked, but it was spread across many emails and pages. The idea for Agent Ma
 - **A new tab**, listing requests in time order.
 - **Chains.** Feedback is often a back-and-forth, so related requests should collapse into one thread.
 - **Versioning.** Some way to know which version of a page an answer was about.
-- **Instruction files plus an endpoint.** The projects' agents do the work; Agent Manager Deluxe provides the instructions that organize it and one central place to reach all the feedback.
+- **Instruction files plus an endpoint.** The projects' agents do the work; Agent Manager Delux provides the instructions that organize it and one central place to reach all the feedback.
 
 Rather than design from that alone, the owner chose to ask the agents that had been running feedback what they had learned.
 
@@ -98,7 +98,7 @@ The likely cause is the prompt. Five of its eight sections asked about problems,
 ### What was decided
 
 - **Twisted Vanworld is the model.** Its habits become the rules in `feedback.md`. The manager adds what it was missing: one queue and explicit states.
-- **The decision lives in Agent Manager Deluxe; artifacts only show the work.** Keeping the forms inside artifacts would change less, but would keep the page-by-page checking and the version guessing.
+- **The decision lives in Agent Manager Delux; artifacts only show the work.** Keeping the forms inside artifacts would change less, but would keep the page-by-page checking and the version guessing.
 - **No release forms.** Each item in a release becomes its own request.
 
 Still open: file uploads (they need storage), whether a blocking request should email the owner, and how each project moves over. See the spec's Open questions.

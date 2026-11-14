@@ -1,11 +1,11 @@
 // The machine heartbeat (C-05). One background process per PC, started by the hooks when a
 // session starts, and gone again 10 minutes after the last session ends. Every 60 s it checks
-// which Claude Code processes are still alive and tells Agent Manager Deluxe. With messages on, it also
+// which Claude Code processes are still alive and tells Agent Manager Delux. With messages on, it also
 // collects the owner's messages every 5 s and posts them into their sessions (inbox.ts).
 
 import { spawn } from 'node:child_process';
 import { closeSync, openSync, unlinkSync, writeSync } from 'node:fs';
-import { INSTRUCTIONS_VERSION, type HeartbeatResponse, type ReportInput } from '@agent-manager-deluxe/shared';
+import { INSTRUCTIONS_VERSION, type HeartbeatResponse, type ReportInput } from '@agent-manager-delux/shared';
 import { loadConfig, type Config } from './config';
 import { logLine, readJsonFile, writeJsonFile } from './files';
 import { subagentAgentId } from './hook';

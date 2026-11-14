@@ -5,7 +5,7 @@ settings: color themes, light / dark, header tone, and the hidden custom-color
 palette.
 
 > **Status: not built yet.** This was copied from another project on Nov 13,
-> 2026 and cut down to the parts that apply to Agent Manager Deluxe. It is the
+> 2026 and cut down to the parts that apply to Agent Manager Delux. It is the
 > target design. The file paths, the `gma:` storage keys and the Tailwind
 > class names are the source project's and will change when this is built here
 > (this app uses Mantine, and its web code is under `web/`).

@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, extname, join } from 'node:path';
-import { BLOCKER_MEDIA_TYPES, LIMITS, type Blocker, type BlockerMediaType } from '@agent-manager-deluxe/shared';
+import { BLOCKER_MEDIA_TYPES, LIMITS, type Blocker, type BlockerMediaType } from '@agent-manager-delux/shared';
 
 const BY_EXTENSION: Record<string, BlockerMediaType> = {
   '.png': 'image/png',
@@ -52,7 +52,7 @@ export function captureScreen(): BlockerFile {
       "--screen doesn't work on Windows (Defender blocks scripted screen captures). Attach a screenshot you have instead: --screenshot <file>",
     );
   }
-  const path = join(tmpdir(), `agent-manager-deluxe-screen-${Date.now()}.jpg`);
+  const path = join(tmpdir(), `agent-manager-delux-screen-${Date.now()}.jpg`);
   try {
     if (process.platform === 'darwin') {
       execFileSync('screencapture', ['-x', '-t', 'jpg', path], { stdio: ['ignore', 'ignore', 'pipe'], timeout: 30_000 });

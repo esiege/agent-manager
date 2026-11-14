@@ -8,7 +8,7 @@ import {
   type AgentState,
   type AgentView,
   type LogLevel,
-} from '@agent-manager-deluxe/shared';
+} from '@agent-manager-delux/shared';
 import type { MantineColor } from '@mantine/core';
 
 /** The order states are listed in filters and on the Overview. */

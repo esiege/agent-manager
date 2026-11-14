@@ -1,7 +1,7 @@
 {
-  "name": "@agent-manager-deluxe/api",
+  "name": "@agent-manager-delux/api",
   "private": true,
-  "description": "Agent Manager Deluxe API: Azure Functions (Node, v4 programming model), bundled with esbuild.",
+  "description": "Agent Manager Delux API: Azure Functions (Node, v4 programming model), bundled with esbuild.",
   "main": "dist/index.js",
   "scripts": {
     "build": "node build.mjs",
@@ -9,7 +9,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@agent-manager-deluxe/shared": "*",
+    "@agent-manager-delux/shared": "*",
     "@azure/cosmos": "^4.4.1",
     "@azure/functions": "^4.7.2"
   }

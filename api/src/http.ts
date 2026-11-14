@@ -1,6 +1,6 @@
 // Framework-neutral request and response types, so handlers can be tested without the Functions host.
 
-import type { ApiError } from '@agent-manager-deluxe/shared';
+import type { ApiError } from '@agent-manager-delux/shared';
 import type { MediaStore } from './store/media';
 import type { Store } from './store/types';
 

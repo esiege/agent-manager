@@ -1,7 +1,7 @@
 // One agent on the Dashboard: a clickable panel with its state and what it's doing.
 // How much it shows depends on its size, through the container queries in styles.css.
 
-import { unfinishedReason, type AgentView } from '@agent-manager-deluxe/shared';
+import { unfinishedReason, type AgentView } from '@agent-manager-delux/shared';
 import { ActionIcon, Tooltip } from '@mantine/core';
 import { IconEyeOff } from '@tabler/icons-react';
 import type { CSSProperties, ReactNode } from 'react';

@@ -1,4 +1,4 @@
-# Agent Manager Deluxe spec
+# Agent Manager Delux spec
 
 Oct 9, 2026 · @Jesse
 
@@ -96,7 +96,7 @@ A hold is enforced at two gates an agent can't skip: Claude Code's PreToolUse ho
 | H-04 | Gate 2: project scripts call `agentctl guard <resource>` before disruptive steps, and it exits non-zero while the resource is held. This catches steps hidden inside a script whose name doesn't show them, such as a relaunch script that first closes the app. | Must | 1 |
 | H-05 | Implicit hold: an app the person started themselves (not through `agentctl launch`) counts as held. An agent that needs it raises an inbox request, such as "musik-4a wants to close Musik.exe, which you started. Allow?" | Must | 1 |
 | H-06 | Warning time: a resource can set one (for example 60 s). The first matching call waits that long while a notification offers Hold, and Hold during the wait denies the call. | Must | 1 |
-| H-07 | Fail closed: if the manager isn't running, both gates refuse guarded steps with "Agent Manager Deluxe not running: can't confirm \<resource> is free". Every other call goes ahead. | Must | 1 |
+| H-07 | Fail closed: if the manager isn't running, both gates refuse guarded steps with "Agent Manager Delux not running: can't confirm \<resource> is free". Every other call goes ahead. | Must | 1 |
 | H-08 | Locks: an agent claims a resource exclusively with `agentctl lock`. Other agents queue in order and see who holds it and when it is expected back. | Should | 2 |
 | H-09 | Locks are leases: freed when the agent ends or after 2 min without a heartbeat. The person can break any lock, and a person's hold always beats an agent's lock. | Should | 2 |
 | H-10 | Every hold, release, lock, allow and deny is logged with who and when. | Should | 1 |
@@ -173,7 +173,7 @@ The CLI:
 Each project adds the rules to its agent instructions (CLAUDE.md):
 
 ```markdown
-## Agent Manager Deluxe
+## Agent Manager Delux
 - Before closing, launching or restarting anything in .agent-manager/resources.json,
   run `agentctl guard <name>`. Exit 3 means the person holds it: do other work, or
   wait with --wait. Never work around a hold.
@@ -239,7 +239,7 @@ Each phase is done when its scenarios pass on the person's own PC, with real Cla
 5. **A prompt in a hidden window** (D-08, D-13). An agent in a background VS Code window hits a permission prompt. Within 5 s a toast appears, and the inbox shows the exact command and the project. A click focuses that window (phase 1) or allows the call (phase 2).
 6. **A long job** (D-03, D-13). An agent starts an import with a 60-min estimate. Its card shows elapsed time, the estimate and the log tail. When the import fails, a toast shows the last error line.
 7. **Two agents, one lock** (H-08, H-09). Agent A holds the lock "editor-content" for an import. Agent B runs `agentctl lock editor-content --wait 1800`, and its card reads "Waiting for editor-content (held by A, about 12 min)". When A unlocks, B has the lock within 5 s. If A crashes, the lock is freed after 2 min.
-8. **Manager down** (H-07). With the manager's process killed, guarded calls are refused with "Agent Manager Deluxe not running", other calls run normally, and no tool call takes more than 100 ms longer.
+8. **Manager down** (H-07). With the manager's process killed, guarded calls are refused with "Agent Manager Delux not running", other calls run normally, and no tool call takes more than 100 ms longer.
 9. **Inside the app** (D-15). A VR game polls the read API every 2 s and shows "2 agents working; musik-4a wants to restart the game in 3 min" on an in-game screen, with a Hold button. Pressing it sets the hold, and the board shows it within 2 s.
 
 ## Non-functional

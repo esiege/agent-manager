@@ -1,8 +1,8 @@
-# Agent Manager Deluxe: update to the latest
+# Agent Manager Delux: update to the latest
 
 Updated: **2026-10-26** · Instructions version: **3**
 
-You are an AI agent on a PC that already reports to Agent Manager Deluxe, and the person wants this PC on the latest version. This page tells you how. It takes a minute and changes nothing else on the PC. (Setting up a new PC? Use `$MANAGER_URL/instructions.md` instead.)
+You are an AI agent on a PC that already reports to Agent Manager Delux, and the person wants this PC on the latest version. This page tells you how. It takes a minute and changes nothing else on the PC. (Setting up a new PC? Use `$MANAGER_URL/instructions.md` instead.)
 
 ## If this was sent to you: check for an update first
 
@@ -50,10 +50,10 @@ node "$HOME/.agent-manager/agentctl.js" version
 4. Check:
    - `node "$HOME/.agent-manager/agentctl.js" version` says `instructions version 3`.
    - `node "$HOME/.agent-manager/agentctl.js" doctor` shows `Hooks: installed` and `Connection: OK`.
-5. Update the `## Agent Manager Deluxe` section (older installs call it `## Agent Manager`) of the user's `~/.claude/CLAUDE.md` (and of the project's `CLAUDE.md`, if it has one) to the text below. Replace the old section rather than adding a second one; add it if there is none. Leave the rest of the file alone.
+5. Update the `## Agent Manager Delux` section (older installs call it `## Agent Manager`) of the user's `~/.claude/CLAUDE.md` (and of the project's `CLAUDE.md`, if it has one) to the text below. Replace the old section rather than adding a second one; add it if there is none. Leave the rest of the file alone.
 
    ```markdown
-   ## Agent Manager Deluxe
+   ## Agent Manager Delux
    - When you start on a story or ticket, run
      `node "$HOME/.agent-manager/agentctl.js" story "<KEY-123: the story's title, or one line on the goal>" --type <kind of work>`,
      where the kind of work is one of: feature, bugfix, testing, refactor, infra, docs, level-design,

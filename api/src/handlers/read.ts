@@ -13,7 +13,7 @@ import {
   type LogLevel,
   type LogsQueryResponse,
   type MeResponse,
-} from '@agent-manager-deluxe/shared';
+} from '@agent-manager-delux/shared';
 import { requireOwner } from '../auth';
 import { sweepLost } from '../alerts';
 import { HttpError, ok, publicOrigin, query, type Handler } from '../http';

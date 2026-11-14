@@ -98,7 +98,7 @@ export function AppLayout() {
       <AppShell.Header withBorder={false}>
         <Box h="100%" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <Group h={82} px={{ base: 'sm', sm: 'md' }} justify="space-between" wrap="nowrap" gap="sm">
-            <Anchor component={Link} to="/" underline="never" c="inherit" aria-label="Agent Manager Deluxe" style={{ flexShrink: 0 }}>
+            <Anchor component={Link} to="/" underline="never" c="inherit" aria-label="Agent Manager Delux" style={{ flexShrink: 0 }}>
               <Logo height={72} />
             </Anchor>
             <Group gap="xs" wrap="nowrap" miw={0}>

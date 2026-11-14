@@ -1,8 +1,8 @@
-# Feedback in Agent Manager Deluxe
+# Feedback in Agent Manager Delux
 
 Nov 13, 2026 · Draft 1
 
-Agents ask the owner for feedback through Agent Manager Deluxe instead of by email links alone. Each request is one item: a link to the agent's artifact (pictures, clips, before and after) plus a short question. The owner answers on a **Feedback** tab with a small fixed form. Requests that follow up on each other form a **chain**. Agents read every answer from one list instead of checking each artifact.
+Agents ask the owner for feedback through Agent Manager Delux instead of by email links alone. Each request is one item: a link to the agent's artifact (pictures, clips, before and after) plus a short question. The owner answers on a **Feedback** tab with a small fixed form. Requests that follow up on each other form a **chain**. Agents read every answer from one list instead of checking each artifact.
 
 ## Why
 
@@ -83,7 +83,7 @@ An agent sends a request with its machine key:
 | `follows` | no | The id of the request this one follows. It joins that chain as the next round and marks the earlier round as replaced. |
 | `agentId` | no | The session sending it, so answers can be pushed to it. agentctl fills it in. |
 
-The answer is `{ id, chainId, round, url }`, where `url` is the request's page in Agent Manager Deluxe. The agent puts that link in any email it still sends.
+The answer is `{ id, chainId, round, url }`, where `url` is the request's page in Agent Manager Delux. The agent puts that link in any email it still sends.
 
 ## The answer
 
@@ -144,13 +144,13 @@ A new page, `feedback.md`, served beside `performance.md`. It covers the API abo
 7. When an answer is done, close the chain in the owner's words: "You wrote: '…'. Done in v0.18."
 8. Read answers from `agentctl feedback answers`, not from each artifact.
 
-Plus a `CLAUDE.md` snippet that points at the page, like the existing Agent Manager Deluxe snippet in `instructions.md`.
+Plus a `CLAUDE.md` snippet that points at the page, like the existing Agent Manager Delux snippet in `instructions.md`.
 
 ## Decisions
 
 These are the recommended choices. Change them here if the owner decides otherwise.
 
-1. **The decision lives in Agent Manager Deluxe; artifacts only show the work.** Keeping forms inside artifacts would change less in each project, but agents would still check every page and guess versions. Artifacts may keep extra questions of their own; the manager's answer is the one that counts.
+1. **The decision lives in Agent Manager Delux; artifacts only show the work.** Keeping forms inside artifacts would change less in each project, but agents would still check every page and guess versions. Artifacts may keep extra questions of their own; the manager's answer is the one that counts.
 2. **No release forms.** Each item in a release becomes its own request. The release email still goes out, linking to the requests.
 
 ## Open questions

@@ -1,15 +1,15 @@
-# Agent Manager Deluxe: how to report in
+# Agent Manager Delux: how to report in
 
 Instructions version: **3** · Updated: **2026-10-26**
 
 Already set up on this PC? Follow `$MANAGER_URL/update.md` instead: it checks whether you're on the latest and updates if not.
 
-You are an AI agent (Claude Code, OpenClaw, or something else) and the person you work for wants you to report to their Agent Manager Deluxe. This page tells you how. Follow the section for your kind of agent, then run its check at the end.
+You are an AI agent (Claude Code, OpenClaw, or something else) and the person you work for wants you to report to their Agent Manager Delux. This page tells you how. Follow the section for your kind of agent, then run its check at the end.
 
 - **`$MANAGER_URL`** below means the address you fetched this page from, without `/instructions.md` (for example `https://agents.example.net`).
 - If a tool gave you a summary of this page, fetch the raw file (`curl -fsSL $MANAGER_URL/instructions.md`) so you have the exact commands.
 - **The machine key is a secret.** It is never on this page. Read it from the `AGENT_MANAGER_KEY` environment variable. Don't print it, log it or write it into files other than the ones these steps name. If it isn't set, stop and explain how to set one up: see "If there's no machine key" below.
-- Never send file contents, command lines, tool output or anything secret to Agent Manager Deluxe. Send short status lines, the person's prompt, and short reports of finished work only.
+- Never send file contents, command lines, tool output or anything secret to Agent Manager Delux. Send short status lines, the person's prompt, and short reports of finished work only.
 
 ## If there's no machine key
 
@@ -43,7 +43,7 @@ One-time setup per PC. It installs a small reporter (`agentctl`) that Claude Cod
    ```bash
    mkdir -p "$HOME/.agent-manager" && curl -fsSL "$MANAGER_URL/agentctl.js" -o "$HOME/.agent-manager/agentctl.js"
    ```
-3. Install it. This checks the URL and key with Agent Manager Deluxe first, then adds hooks to `~/.claude/settings.json` (after backing it up). Claude Code may ask the person to approve the settings change.
+3. Install it. This checks the URL and key with Agent Manager Delux first, then adds hooks to `~/.claude/settings.json` (after backing it up). Claude Code may ask the person to approve the settings change.
    ```bash
    node "$HOME/.agent-manager/agentctl.js" install --url "$MANAGER_URL"
    ```
@@ -69,7 +69,7 @@ What each session reports on its own: its **story** (the ticket in the branch na
 Recommended: add this to the project's or the user's `CLAUDE.md`, so agents name their story and the kind of work it is, and write a proper report of finished work:
 
 ```markdown
-## Agent Manager Deluxe
+## Agent Manager Delux
 - When you start on a story or ticket, run
   `node "$HOME/.agent-manager/agentctl.js" story "<KEY-123: the story's title, or one line on the goal>" --type <kind of work>`,
   where the kind of work is one of: feature, bugfix, testing, refactor, infra, docs, level-design,
@@ -85,9 +85,9 @@ Recommended: add this to the project's or the user's `CLAUDE.md`, so agents name
 
 To remove it: `node "$HOME/.agent-manager/agentctl.js" uninstall`.
 
-### Messages from Agent Manager Deluxe
+### Messages from Agent Manager Delux
 
-The person can send a message to a running session from its page in Agent Manager Deluxe. agentctl on the session's PC picks it up within about 5 seconds and posts it into the session. This is off by default and is turned on separately on each PC, so turning it on for one PC does nothing for the others:
+The person can send a message to a running session from its page in Agent Manager Delux. agentctl on the session's PC picks it up within about 5 seconds and posts it into the session. This is off by default and is turned on separately on each PC, so turning it on for one PC does nothing for the others:
 
 ```bash
 node "$HOME/.agent-manager/agentctl.js" install --allow-messages
@@ -107,7 +107,7 @@ Each persona (for example the community manager for the website, and the one for
 
 - **agentId**: `openclaw/<persona>`, for example `openclaw/community-web`. Keep it the same across restarts.
 - **kind**: `openclaw`. **machine**: the host you run on. **name**: the persona's display name.
-- **Every 2 minutes**, and whenever your state changes, send a report with `state` and a one-line `activity`. Set `"lostAfterSeconds": 300` so Agent Manager Deluxe shows you as Lost after 5 minutes of silence.
+- **Every 2 minutes**, and whenever your state changes, send a report with `state` and a one-line `activity`. Set `"lostAfterSeconds": 300` so Agent Manager Delux shows you as Lost after 5 minutes of silence.
 - **Every public action** (posted patch notes, answered a comment, ran a survey) is a report with `link` set to what you posted, and `activity` saying what you did.
 - Send errors and anything worth troubleshooting to `/api/v1/logs` with `source` set to your agentId.
 
@@ -127,7 +127,7 @@ Two calls cover most agents: **report** your state, and send **logs**. Every cal
 | `name` | no | Display name. Defaults to `agentId`. |
 | `project` | no | The project or product you work on. |
 | `parentId` | no | The `agentId` of the agent that started you, if you are a sub-agent. |
-| `state` | no | `working`, `waiting` (waiting on the person), `idle`, `stopped` or `failed`. Agent Manager Deluxe works out `lost` itself from silence. |
+| `state` | no | `working`, `waiting` (waiting on the person), `idle`, `stopped` or `failed`. Agent Manager Delux works out `lost` itself from silence. |
 | `activity` | no | One line: what you're doing now (up to 500 characters). |
 | `story` | no | The story or goal you're on: a ticket and its title (`AM-123: Export to CSV`), or a one-line summary (up to 300). |
 | `task` | no | The technical step you're on now (up to 300). |
@@ -175,7 +175,7 @@ report("https://agents.example.net", agentId="openclaw/community-game", kind="op
        state="working", activity="Posted patch notes for 1.4", link="https://example.com/news/1-4", instructionsVersion=3)
 ```
 
-The answer includes `agentUrl`, the agent's page in Agent Manager Deluxe, and `warnings` for anything that was adjusted (for example a field that was too long).
+The answer includes `agentUrl`, the agent's page in Agent Manager Delux, and `warnings` for anything that was adjusted (for example a field that was too long).
 
 ### Logs: `POST $MANAGER_URL/api/v1/logs`
 
@@ -201,7 +201,7 @@ Values that look like keys or tokens are masked when stored, but don't rely on i
 
 ### Heartbeat for many agents: `POST $MANAGER_URL/api/v1/heartbeat`
 
-If one process watches several agents of one kind on a machine, it can send `{"machine": "...", "kind": "...", "agentIds": ["...", "..."]}` every minute instead of a report per agent. Listed agents stay alive. Agents of that machine and kind that aren't listed are marked stopped. Ids Agent Manager Deluxe has never seen come back in `stored.unknown`, so you can send a full report for each.
+If one process watches several agents of one kind on a machine, it can send `{"machine": "...", "kind": "...", "agentIds": ["...", "..."]}` every minute instead of a report per agent. Listed agents stay alive. Agents of that machine and kind that aren't listed are marked stopped. Ids Agent Manager Delux has never seen come back in `stored.unknown`, so you can send a full report for each.
 
 ## Performance data from games
 

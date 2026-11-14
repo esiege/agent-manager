@@ -1,7 +1,7 @@
 // The report of finished work: its name (the commit's subject, linked to the commit), what was
 // asked, what was done, and what the owner should see now. Loaded on demand: it brings Markdown.
 
-import type { WorkResult } from '@agent-manager-deluxe/shared';
+import type { WorkResult } from '@agent-manager-delux/shared';
 import { Anchor, Badge, Blockquote, Checkbox, Group, Paper, Stack, Text, Title, Tooltip, Typography } from '@mantine/core';
 import { IconCircleCheck, IconExternalLink, IconGitCommit } from '@tabler/icons-react';
 import Markdown from 'react-markdown';

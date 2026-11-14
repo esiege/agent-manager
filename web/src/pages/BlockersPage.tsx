@@ -6,7 +6,7 @@ import {
   type AgentMessage,
   type Blocker,
   type BlockersResponse,
-} from '@agent-manager-deluxe/shared';
+} from '@agent-manager-delux/shared';
 import { Anchor, Badge, Group, Paper, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';

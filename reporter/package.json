@@ -1,7 +1,7 @@
 {
-  "name": "@agent-manager-deluxe/reporter",
+  "name": "@agent-manager-delux/reporter",
   "private": true,
-  "description": "agentctl: reports Claude Code sessions on this PC to Agent Manager Deluxe. One file, Node built-ins only.",
+  "description": "agentctl: reports Claude Code sessions on this PC to Agent Manager Delux. One file, Node built-ins only.",
   "bin": {
     "agentctl": "dist/agentctl.js"
   },
@@ -10,6 +10,6 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@agent-manager-deluxe/shared": "*"
+    "@agent-manager-delux/shared": "*"
   }
 }

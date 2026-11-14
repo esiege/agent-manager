@@ -1,4 +1,4 @@
-import { RECENT_DAYS, type AgentsResponse, type AgentView } from '@agent-manager-deluxe/shared';
+import { RECENT_DAYS, type AgentsResponse, type AgentView } from '@agent-manager-delux/shared';
 import { useMemo } from 'react';
 import { api } from '../lib/api';
 import { syncServerClock } from '../lib/time';

@@ -1,4 +1,4 @@
-import { INSTRUCTIONS_VERSION, type AgentState, type LogLevel } from '@agent-manager-deluxe/shared';
+import { INSTRUCTIONS_VERSION, type AgentState, type LogLevel } from '@agent-manager-delux/shared';
 import { Badge, Tooltip } from '@mantine/core';
 import { LEVEL_COLOR, STATE_COLOR, STATE_LABEL } from '../lib/labels';
 

@@ -1,7 +1,7 @@
 // Two kinds of caller: the owner, signed in through Static Web Apps, and agents, using machine keys.
 
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { OWNER_WRITE_HEADER, type KeyScope, type MachineKey } from '@agent-manager-deluxe/shared';
+import { OWNER_WRITE_HEADER, type KeyScope, type MachineKey } from '@agent-manager-delux/shared';
 import { HttpError, type Ctx, type Req } from './http';
 import { inAzure } from './store';
 import type { StoredKey } from './store/types';
@@ -27,7 +27,7 @@ export function requireOwner(req: Req, ctx: Ctx): Owner {
   if (ctx.env.DEV_OWNER && !inAzure(ctx.env)) return { login: ctx.env.DEV_OWNER, provider: 'dev' };
 
   const header = req.headers.get('x-ms-client-principal');
-  if (!header) throw new HttpError(401, 'Sign in to use Agent Manager Deluxe');
+  if (!header) throw new HttpError(401, 'Sign in to use Agent Manager Delux');
   let principal: ClientPrincipal;
   try {
     principal = JSON.parse(Buffer.from(header, 'base64').toString('utf8')) as ClientPrincipal;
@@ -35,7 +35,7 @@ export function requireOwner(req: Req, ctx: Ctx): Owner {
     throw new HttpError(401, 'The sign-in header could not be read; sign in again');
   }
   const login = principal.userDetails?.trim();
-  if (!login) throw new HttpError(401, 'Sign in to use Agent Manager Deluxe');
+  if (!login) throw new HttpError(401, 'Sign in to use Agent Manager Delux');
 
   const owners = (ctx.env.OWNER_LOGINS ?? '')
     .split(',')
@@ -54,7 +54,7 @@ export function requireOwner(req: Req, ctx: Ctx): Owner {
 export function requireOwnerWrite(req: Req, ctx: Ctx): Owner {
   const owner = requireOwner(req, ctx);
   if (req.headers.get(OWNER_WRITE_HEADER) !== '1') {
-    throw new HttpError(403, `Changes must come from the Agent Manager Deluxe site (the ${OWNER_WRITE_HEADER} header is missing)`);
+    throw new HttpError(403, `Changes must come from the Agent Manager Delux site (the ${OWNER_WRITE_HEADER} header is missing)`);
   }
   return owner;
 }
@@ -107,7 +107,7 @@ export async function requireKey(req: Req, ctx: Ctx, allow: KeyScope = 'all'): P
     throw new HttpError(401, 'Missing machine key: send it in the X-Agent-Manager-Key header (AGENT_MANAGER_KEY)');
   }
   const match = KEY_FORMAT.exec(secret);
-  if (!match) throw new HttpError(401, 'That is not an Agent Manager Deluxe key; keys look like am_<id>_<secret>');
+  if (!match) throw new HttpError(401, 'That is not an Agent Manager Delux key; keys look like am_<id>_<secret>');
   const id = match[1]!;
   const now = ctx.now().getTime();
 

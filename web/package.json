@@ -1,5 +1,5 @@
 {
-  "name": "@agent-manager-deluxe/web",
+  "name": "@agent-manager-delux/web",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@agent-manager-deluxe/shared": "*",
+    "@agent-manager-delux/shared": "*",
     "@mantine/charts": "^8.3.18",
     "@mantine/core": "^8.1.0",
     "@mantine/hooks": "^8.1.0",

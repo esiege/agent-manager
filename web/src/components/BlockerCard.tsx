@@ -1,7 +1,7 @@
 // One open blocker: who is stuck, where, since when, what's in the way (with its screenshots or
 // video), and a box to answer it right there. Loaded on demand: it brings Markdown.
 
-import { LIMITS, type Blocker, type BlockerAgentStatus, type BlockerMedia } from '@agent-manager-deluxe/shared';
+import { LIMITS, type Blocker, type BlockerAgentStatus, type BlockerMedia } from '@agent-manager-delux/shared';
 import { Anchor, Badge, Button, Group, Image, Modal, Paper, Stack, Text, Textarea, Title, Tooltip, Typography, UnstyledButton } from '@mantine/core';
 import { IconCheck, IconDeviceDesktop, IconHash, IconMessageCircle, IconMessageCircleOff, IconX } from '@tabler/icons-react';
 import { useState } from 'react';

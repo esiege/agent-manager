@@ -2,7 +2,7 @@ import { createServer, type Server } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { AgentMessage } from '@agent-manager-deluxe/shared';
+import type { AgentMessage } from '@agent-manager-delux/shared';
 import { deliverMessage, formatMessage, nextInbox, postToSession } from '../src/inbox';
 import type { InboxRecord } from '../src/sessions';
 
@@ -50,7 +50,7 @@ describe('deliverMessage', () => {
 
   it('posts the text with who sent it, and acks it as delivered', async () => {
     expect(await deliverMessage(message, INBOX, 'pc', send)).toEqual({ id: 'm1', machine: 'pc', status: 'delivered' });
-    expect(sent.at(-1)).toBe('Run the tests\n\n(Sent from Agent Manager Deluxe by owner)');
+    expect(sent.at(-1)).toBe('Run the tests\n\n(Sent from Agent Manager Delux by owner)');
     expect(formatMessage(message)).toBe(sent.at(-1));
   });
 

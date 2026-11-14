@@ -2,7 +2,7 @@
 // an outside cron can call with a machine key.
 
 import { randomUUID } from 'node:crypto';
-import { validateAlertSubscription, type AlertsResponse, type AlertSubscription } from '@agent-manager-deluxe/shared';
+import { validateAlertSubscription, type AlertsResponse, type AlertSubscription } from '@agent-manager-delux/shared';
 import { deliver, sweepLost } from '../alerts';
 import { requireKey, requireOwner, requireOwnerWrite } from '../auth';
 import { HttpError, fail, ok, publicOrigin, readJson, type Ctx, type Handler } from '../http';
@@ -70,7 +70,7 @@ export const testAlert: Handler = async (req, ctx) => {
   const sub = await mustGet(ctx, idField(readJson(req, MAX_BODY)));
   const error = await deliver(ctx, sub, {
     event: 'test',
-    title: 'Agent Manager Deluxe test',
+    title: 'Agent Manager Delux test',
     body: `Alerts for ${sub.name} arrive here.`,
     click: `${publicOrigin(req, ctx.env)}/settings`,
   });

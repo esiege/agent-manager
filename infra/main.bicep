@@ -1,4 +1,4 @@
-// Agent Manager Deluxe in Azure: a Static Web App (React UI + managed Functions API),
+// Agent Manager Delux in Azure: a Static Web App (React UI + managed Functions API),
 // Cosmos DB serverless for storage, a storage account for blocker screenshots and videos,
 // and Application Insights for the app's own telemetry.
 // Deploy with scripts/deploy.ps1, which also builds and uploads the app.

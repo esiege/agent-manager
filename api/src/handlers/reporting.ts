@@ -9,7 +9,7 @@ import {
   type ReportingResult,
   type ReportingTurn,
   type ReportingUsage,
-} from '@agent-manager-deluxe/shared';
+} from '@agent-manager-delux/shared';
 import { requireOwner } from '../auth';
 import { HttpError, ok, query, type Handler } from '../http';
 

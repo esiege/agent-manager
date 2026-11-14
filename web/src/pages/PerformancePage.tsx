@@ -12,7 +12,7 @@ import {
   type PerfSession,
   type PerfSessionsResponse,
   type PerfStats,
-} from '@agent-manager-deluxe/shared';
+} from '@agent-manager-delux/shared';
 import { Alert, Anchor, Badge, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { createColumnHelper, getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table';

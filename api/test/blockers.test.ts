@@ -7,7 +7,7 @@ import {
   type BlockersResponse,
   type CreateKeyResponse,
   type InboxResponse,
-} from '@agent-manager-deluxe/shared';
+} from '@agent-manager-delux/shared';
 import { resetAuthState } from '../src/auth';
 import { addBlockerMedia, blocker, blockerMedia, blockers, createBlocker, resolveBlocker } from '../src/handlers/blockers';
 import { report } from '../src/handlers/ingest';

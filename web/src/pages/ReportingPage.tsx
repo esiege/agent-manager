@@ -10,7 +10,7 @@ import {
   type ReportingResponse,
   type WorkGroup,
   type WorkType,
-} from '@agent-manager-deluxe/shared';
+} from '@agent-manager-delux/shared';
 import {
   Alert,
   Anchor,

@@ -1,4 +1,4 @@
-# Agent Manager Deluxe spec, v2
+# Agent Manager Delux spec, v2
 
 Oct 10, 2026 · Draft 1
 

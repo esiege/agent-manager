@@ -1,14 +1,14 @@
 <p align="center">
-  <img src="web/src/assets/logo.svg" alt="Agent Manager Deluxe" width="440">
+  <img src="web/src/assets/logo.svg" alt="Agent Manager Delux" width="440">
 </p>
 
-# Agent Manager Deluxe
+# Agent Manager Delux
 
 A self-hosted dashboard for the AI agents you run. See which Claude Code sessions on your PCs are working, which are waiting on you, and what each one finished and wants you to check.
 
 ## Why
 
-If you run agents in several windows on more than one machine, you lose track of them. You find out a session was waiting for approval an hour after it asked, or you can't remember which one fixed what. Agent Manager Deluxe gives you one page that's never more than a few seconds behind.
+If you run agents in several windows on more than one machine, you lose track of them. You find out a session was waiting for approval an hour after it asked, or you can't remember which one fixed what. Agent Manager Delux gives you one page that's never more than a few seconds behind.
 
 ## What you get
 
@@ -23,7 +23,7 @@ If you run agents in several windows on more than one machine, you lose track of
 
 ## How it works
 
-Agent Manager Deluxe is two parts:
+Agent Manager Delux is two parts:
 
 1. **The site:** a React UI and a small API on Azure Static Web Apps, with Cosmos DB (serverless) for storage. One script deploys it to your own Azure account, and on the Free plan it costs close to nothing. Only the GitHub logins you list can sign in.
 2. **The reporter** (`agentctl`): one Node file on each PC, with no dependencies. Claude Code runs it from hooks in your user-level settings, so every session on that PC reports without you doing anything per session or per project. Each PC has its own key, which you can revoke on its own.
@@ -32,7 +32,7 @@ Agent Manager Deluxe is two parts:
 
 There's no SDK to install and no setup guide for you to follow. The site serves plain Markdown pages written for agents, and you set an agent up by sending it one sentence with a link:
 
-> Read `<your site>/instructions.md` and set yourself up to report to Agent Manager Deluxe. If this PC has no machine key yet, explain how to set one up.
+> Read `<your site>/instructions.md` and set yourself up to report to Agent Manager Delux. If this PC has no machine key yet, explain how to set one up.
 
 The agent fetches the page and follows it. The **Instructions** tab has each sentence ready to copy, with your site's address filled in.
 
@@ -133,7 +133,7 @@ It creates the resource group `agent-manager` with a Static Web App (Free plan),
 
 Once per PC, and you run it yourself: Claude Code in auto mode won't let an agent change Claude Code's own settings. The full steps are in [Docs/Claude-Code-Setup.md](Docs/Claude-Code-Setup.md). In short:
 
-1. In Agent Manager Deluxe, open **Settings** and make a machine key named after the PC. Run the PowerShell line it shows, which saves the key as `AGENT_MANAGER_KEY`.
+1. In Agent Manager Delux, open **Settings** and make a machine key named after the PC. Run the PowerShell line it shows, which saves the key as `AGENT_MANAGER_KEY`.
 2. In your own PowerShell window on that PC, download `agentctl` from `<your site>/agentctl.js` into `~/.agent-manager`, then run `node "$HOME\.agent-manager\agentctl.js" install --url <your site>`, then `doctor`.
 
 `install` adds hooks to `~/.claude/settings.json` (backed up first). From then on every session reports in the background:

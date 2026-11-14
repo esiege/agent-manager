@@ -8,7 +8,7 @@ import {
   type PerfSessionDetailResponse,
   type PerfSessionResponse,
   type PerfSessionsResponse,
-} from '@agent-manager-deluxe/shared';
+} from '@agent-manager-delux/shared';
 import { resetAuthState } from '../src/auth';
 import { report } from '../src/handlers/ingest';
 import { createKey, listKeys } from '../src/handlers/keys';

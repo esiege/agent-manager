@@ -20,7 +20,7 @@ import {
   type BlockerMediaType,
   type BlockerResponse,
   type BlockersResponse,
-} from '@agent-manager-deluxe/shared';
+} from '@agent-manager-delux/shared';
 import { blockersPage, notifyBlocker } from '../alerts';
 import { requireKey, requireOwner, requireOwnerWrite } from '../auth';
 import { HttpError, ok, publicOrigin, query, readJson, type Ctx, type Handler, type Req } from '../http';
@@ -62,7 +62,7 @@ function blockerEvent(agentId: string, activity: string, at: string): AgentEvent
 
 function media(ctx: Ctx): MediaStore {
   if (!ctx.media) {
-    throw new HttpError(503, "Screenshots and videos aren't set up on this Agent Manager Deluxe (no BLOB_ACCOUNT); the blocker was kept without it");
+    throw new HttpError(503, "Screenshots and videos aren't set up on this Agent Manager Delux (no BLOB_ACCOUNT); the blocker was kept without it");
   }
   return ctx.media;
 }
@@ -102,7 +102,7 @@ export const createBlocker: Handler = async (req, ctx) => {
     keyName: key.name,
   };
   const origin = publicOrigin(req, ctx.env);
-  const warnings = ctx.media ? [] : ["Screenshots and videos aren't set up on this Agent Manager Deluxe, so only text can be added"];
+  const warnings = ctx.media ? [] : ["Screenshots and videos aren't set up on this Agent Manager Delux, so only text can be added"];
   const res: BlockerResponse = { ok: true, test, stored: blocker, warnings, blockerUrl: blockersPage(origin, blocker.id) };
   if (test) return ok(res);
 

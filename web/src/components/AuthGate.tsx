@@ -1,6 +1,6 @@
 // Shows the app only to the signed-in owner. 401 shows a sign-in card, 403 says whose account it is.
 
-import type { MeResponse } from '@agent-manager-deluxe/shared';
+import type { MeResponse } from '@agent-manager-delux/shared';
 import { Button, Center, Loader, Paper, Stack, Text, Title } from '@mantine/core';
 import { IconLogin, IconLogout } from '@tabler/icons-react';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
@@ -29,7 +29,7 @@ function Card({ children }: { children: ReactNode }) {
       <Paper withBorder shadow="sm" radius="md" p="xl" maw={420} w="100%">
         <Stack gap="md">
           <Title order={1} size="h3">
-            Agent Manager Deluxe
+            Agent Manager Delux
           </Title>
           {children}
         </Stack>

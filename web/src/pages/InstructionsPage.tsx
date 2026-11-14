@@ -1,6 +1,6 @@
 // U-07: the instructions agents read, rendered from the same raw file they fetch (I-01).
 
-import { INSTRUCTIONS_UPDATED, INSTRUCTIONS_VERSION } from '@agent-manager-deluxe/shared';
+import { INSTRUCTIONS_UPDATED, INSTRUCTIONS_VERSION } from '@agent-manager-delux/shared';
 import { Anchor, Box, Button, CopyButton, Group, Paper, Text, Title, Tooltip, Typography } from '@mantine/core';
 import { IconCheck, IconCopy, IconDownload, IconFileText } from '@tabler/icons-react';
 import { createElement, useState, type ReactNode } from 'react';
@@ -22,7 +22,7 @@ async function loadInstructions(signal: AbortSignal): Promise<string> {
     res = await fetch(INSTRUCTIONS_PATH, { signal, headers: { Accept: 'text/markdown, text/plain' } });
   } catch (e) {
     if (signal.aborted) throw e;
-    throw new Error("Can't reach Agent Manager Deluxe. Check your connection.");
+    throw new Error("Can't reach Agent Manager Delux. Check your connection.");
   }
   // A missing file can come back as the app's own HTML page.
   const type = res.headers.get('content-type') ?? '';
@@ -141,10 +141,10 @@ export function InstructionsPage() {
   // Hidden until asked for. A link to a heading in the instructions opens them.
   const [showFull, setShowFull] = useState(() => window.location.hash.length > 1);
   const instructionsUrl = `${window.location.origin}${INSTRUCTIONS_PATH}`;
-  const sentence = `Read ${instructionsUrl} and set yourself up to report to Agent Manager Deluxe. If this PC has no machine key yet, explain how to set one up.`;
-  const updateSentence = `Read ${window.location.origin}${UPDATE_PATH} (updated ${INSTRUCTIONS_UPDATED}) and update this PC's Agent Manager Deluxe reporting if it isn't on the latest.`;
+  const sentence = `Read ${instructionsUrl} and set yourself up to report to Agent Manager Delux. If this PC has no machine key yet, explain how to set one up.`;
+  const updateSentence = `Read ${window.location.origin}${UPDATE_PATH} (updated ${INSTRUCTIONS_UPDATED}) and update this PC's Agent Manager Delux reporting if it isn't on the latest.`;
 
-  const performanceSentence = `Read ${window.location.origin}${PERFORMANCE_PATH} and add performance reporting to this game, so its sessions show up in Agent Manager Deluxe. I'll give you the game key.`;
+  const performanceSentence = `Read ${window.location.origin}${PERFORMANCE_PATH} and add performance reporting to this game, so its sessions show up in Agent Manager Delux. I'll give you the game key.`;
 
   return (
     <>

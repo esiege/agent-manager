@@ -1,4 +1,4 @@
-// agentctl: reports the Claude Code sessions on this PC to Agent Manager Deluxe.
+// agentctl: reports the Claude Code sessions on this PC to Agent Manager Delux.
 // One file, Node built-ins only. See `agentctl help`.
 
 import { execFileSync } from 'node:child_process';
@@ -19,7 +19,7 @@ import {
   type ReportResponse,
   type ReportedState,
   type WorkType,
-} from '@agent-manager-deluxe/shared';
+} from '@agent-manager-delux/shared';
 import { BlockerFileError, captureScreen, describeBlocker, readBlockerFile, type BlockerFile } from './blocker';
 import { ConfigError, defaultMachineName, loadConfig, type Config } from './config';
 import { ensureDaemon, runDaemon } from './daemon';
@@ -48,7 +48,7 @@ import { hasAgentctlHooks, withAgentctlHooks, withoutAgentctlHooks } from './set
 import { splitChecks } from './result';
 import { readTranscript, readUsage } from './transcript';
 
-const HELP = `agentctl: reports the Claude Code sessions on this PC to Agent Manager Deluxe.
+const HELP = `agentctl: reports the Claude Code sessions on this PC to Agent Manager Delux.
 
   agentctl install --url <url> [--key <key>] [--machine <name>]
       Saves the URL and machine key, checks them, and adds the reporting hooks to
@@ -86,7 +86,7 @@ const HELP = `agentctl: reports the Claude Code sessions on this PC to Agent Man
   agentctl hook               (used by the hooks) Reads one hook event from stdin.
   agentctl daemon             (started by the hooks) Runs the heartbeat.
 
-Exit codes: 0 done, 1 bad usage, 2 not set up, 3 session not found, 4 Agent Manager Deluxe refused or
+Exit codes: 0 done, 1 bad usage, 2 not set up, 3 session not found, 4 Agent Manager Delux refused or
 unreachable, 5 uncommitted changes (done), 6 the blocker is still open after --wait.`;
 
 class UsageError extends Error {}
@@ -454,7 +454,7 @@ async function installCommand(flags: Record<string, string>) {
   const url = (flags.url || process.env.AGENT_MANAGER_URL || saved?.url || '').replace(/\/+$/, '');
   const key = flags.key || process.env.AGENT_MANAGER_KEY || userEnvKey() || saved?.key || '';
   const machine = flags.machine || saved?.machine || defaultMachineName();
-  if (!/^https?:\/\//.test(url)) throw new UsageError('Usage: agentctl install --url https://<your Agent Manager Deluxe> [--key <key>] [--machine <name>]');
+  if (!/^https?:\/\//.test(url)) throw new UsageError('Usage: agentctl install --url https://<your Agent Manager Delux> [--key <key>] [--machine <name>]');
   if (!key) throw new UsageError('No machine key: make one on the Settings tab, then set AGENT_MANAGER_KEY or pass --key');
   if ('allow-messages' in flags && 'no-messages' in flags) throw new UsageError('Pass --allow-messages or --no-messages, not both');
   const messages = 'allow-messages' in flags ? true : 'no-messages' in flags ? false : saved?.messages === true;
@@ -473,7 +473,7 @@ async function installCommand(flags: Record<string, string>) {
     machine,
     test: true,
   });
-  if (!check.ok) throw new SendError('Agent Manager Deluxe did not accept the test report');
+  if (!check.ok) throw new SendError('Agent Manager Delux did not accept the test report');
 
   mkdirSync(dirname(paths.script()), { recursive: true });
   if (resolve(scriptPath()) !== resolve(paths.script())) copyFileSync(scriptPath(), paths.script());
@@ -484,11 +484,11 @@ async function installCommand(flags: Record<string, string>) {
   // A heartbeat still running the old agentctl stops; the next hook event starts the new one.
   const daemon = readJsonFile<{ pid: number }>(paths.daemon());
   if (daemon && isAlive(daemon.pid)) process.kill(daemon.pid);
-  console.log(`Agent Manager Deluxe reporting is set up for ${machine} (instructions version ${INSTRUCTIONS_VERSION}, ${INSTRUCTIONS_UPDATED}).
+  console.log(`Agent Manager Delux reporting is set up for ${machine} (instructions version ${INSTRUCTIONS_VERSION}, ${INSTRUCTIONS_UPDATED}).
   Config:    ${paths.config()}
   agentctl:  ${paths.script()}
   Hooks:     ${paths.claudeSettings()}${backup ? `\n  Backup:    ${backup}` : ''}
-  Messages:  ${messages ? 'on: you can send messages to these sessions from Agent Manager Deluxe' : 'off (--allow-messages turns them on)'}
+  Messages:  ${messages ? 'on: you can send messages to these sessions from Agent Manager Delux' : 'off (--allow-messages turns them on)'}
 New Claude Code sessions on this PC now appear at ${url}/agents within a few seconds.
 Sessions that are already open start reporting once Claude Code reloads its settings.`);
 }
@@ -562,7 +562,7 @@ async function testCommand() {
     activity: 'agentctl test',
     test: true,
   });
-  console.log(`Agent Manager Deluxe at ${config.url} accepted a test report from ${config.machine}.`);
+  console.log(`Agent Manager Delux at ${config.url} accepted a test report from ${config.machine}.`);
   if (res.warnings.length) console.log(`Warnings: ${res.warnings.join('; ')}`);
 }
 

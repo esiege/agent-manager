@@ -1,7 +1,7 @@
 {
-  "name": "agent-manager-deluxe",
+  "name": "agent-manager-delux",
   "private": true,
-  "description": "Agent Manager Deluxe: one place to see every agent you run. See Docs/Spec-v2.md.",
+  "description": "Agent Manager Delux: one place to see every agent you run. See Docs/Spec-v2.md.",
   "workspaces": [
     "shared",
     "api",

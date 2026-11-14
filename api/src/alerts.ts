@@ -9,7 +9,7 @@ import {
   type AlertEvent,
   type AlertSubscription,
   type Blocker,
-} from '@agent-manager-deluxe/shared';
+} from '@agent-manager-delux/shared';
 import type { Ctx } from './http';
 
 export interface AlertMessage {

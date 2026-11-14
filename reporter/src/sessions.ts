@@ -5,7 +5,7 @@
 //   sessions/<sessionId>/context.json       the story and task pinned by agentctl, and the current todo
 //   sessions/<sessionId>/inbox.json         the session's inbox address and token, only while messages are on
 
-import type { WorkType } from '@agent-manager-deluxe/shared';
+import type { WorkType } from '@agent-manager-delux/shared';
 import { existsSync, readdirSync, rmSync, statSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { readJsonFile, writeJsonFile } from './files';

@@ -15,7 +15,7 @@ import {
   type MessageStatus,
   type PerfSample,
   type PerfSession,
-} from '@agent-manager-deluxe/shared';
+} from '@agent-manager-delux/shared';
 
 /** A machine key as stored: the key's metadata plus a SHA-256 hash of the secret. */
 export interface StoredKey extends Omit<MachineKey, 'scope'> {

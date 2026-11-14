@@ -1,4 +1,4 @@
-import type { ApiError } from '@agent-manager-deluxe/shared';
+import type { ApiError } from '@agent-manager-delux/shared';
 import type { Config } from './config';
 
 export class SendError extends Error {
@@ -10,17 +10,17 @@ export class SendError extends Error {
   }
 }
 
-/** POSTs JSON to the Agent Manager Deluxe API and returns the parsed answer, or throws a SendError with the server's reason. */
+/** POSTs JSON to the Agent Manager Delux API and returns the parsed answer, or throws a SendError with the server's reason. */
 export function post<T>(config: Config, path: string, body: unknown, timeoutMs = 5000): Promise<T> {
   return call<T>(config, 'POST', path, body, timeoutMs);
 }
 
-/** GETs from the Agent Manager Deluxe API with the machine key. */
+/** GETs from the Agent Manager Delux API with the machine key. */
 export function get<T>(config: Config, path: string, timeoutMs = 15_000): Promise<T> {
   return call<T>(config, 'GET', path, undefined, timeoutMs);
 }
 
-/** POSTs a file (its bytes, with its Content-Type) to the Agent Manager Deluxe API. */
+/** POSTs a file (its bytes, with its Content-Type) to the Agent Manager Delux API. */
 export function postFile<T>(config: Config, path: string, bytes: Buffer, contentType: string, timeoutMs = 120_000): Promise<T> {
   return call<T>(config, 'POST', path, { bytes, contentType }, timeoutMs);
 }

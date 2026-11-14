@@ -1,6 +1,6 @@
 // The Dashboard: one panel per agent, sized so they all fit on one screen (phone or desktop).
 
-import { unfinishedReason, type AgentView } from '@agent-manager-deluxe/shared';
+import { unfinishedReason, type AgentView } from '@agent-manager-delux/shared';
 import { Anchor, Group, Text } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import { useState } from 'react';
@@ -121,7 +121,7 @@ export function DashboardPage() {
 
   return (
     <div className="am-dash">
-      <title>Dashboard · Agent Manager Deluxe</title>
+      <title>Dashboard · Agent Manager Delux</title>
       <Group className="am-dash-bar" justify="space-between" wrap="nowrap" gap="sm">
         <Text size="sm" fw={500} truncate="end" miw={0}>
           {data ? (groups.length ? countsLine(groups) : 'Nothing running') : 'Loading…'}

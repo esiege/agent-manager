@@ -1,4 +1,4 @@
-// Typed client for the Agent Manager Deluxe read API (same origin, signed in as the owner).
+// Typed client for the Agent Manager Delux read API (same origin, signed in as the owner).
 
 import {
   API_BASE,
@@ -25,7 +25,7 @@ import {
   type PerfSessionDetailResponse,
   type PerfSessionsResponse,
   type ReportingResponse,
-} from '@agent-manager-deluxe/shared';
+} from '@agent-manager-delux/shared';
 
 /** A failed request. `status` is 0 when the server couldn't be reached. */
 export class ApiRequestError extends Error {
@@ -80,7 +80,7 @@ async function request<T>(path: string, { method = 'GET', body, signal }: Reques
     });
   } catch (e) {
     if (signal?.aborted) throw e;
-    throw new ApiRequestError("Can't reach Agent Manager Deluxe. Check your connection.", 0);
+    throw new ApiRequestError("Can't reach Agent Manager Delux. Check your connection.", 0);
   }
 
   if (res.type === 'opaqueredirect') {

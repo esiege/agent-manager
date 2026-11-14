@@ -1,6 +1,6 @@
 // U-04: every log, newest first, filtered on the server; filters and sort live in the URL.
 
-import { LOG_LEVELS, type LogEntry, type LogLevel, type LogsQuery } from '@agent-manager-deluxe/shared';
+import { LOG_LEVELS, type LogEntry, type LogLevel, type LogsQuery } from '@agent-manager-delux/shared';
 import { Alert, Button, MultiSelect, NumberInput, Switch, Text, TextInput } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { IconRefresh, IconSearch } from '@tabler/icons-react';

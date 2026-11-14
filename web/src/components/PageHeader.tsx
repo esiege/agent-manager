@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 export function PageHeader({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <Group justify="space-between" align="center" gap="sm" mb="md" wrap="wrap">
-      <title>{`${title} · Agent Manager Deluxe`}</title>
+      <title>{`${title} · Agent Manager Delux`}</title>
       <Title order={1} size="h2">
         {title}
       </Title>

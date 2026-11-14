@@ -15,7 +15,7 @@ import {
   type AgentMessage,
   type InboxResponse,
   type SendMessageResponse,
-} from '@agent-manager-deluxe/shared';
+} from '@agent-manager-delux/shared';
 import { requireKey, requireOwnerWrite } from '../auth';
 import { HttpError, ok, readJson, type Ctx, type Handler } from '../http';
 
@@ -71,7 +71,7 @@ export function whyNoMessages(agent: Agent, now: Date): string | null {
   // Claude Code would treat agentctl's message as the session's own, so a session that skips
   // permission prompts would act on it unchecked. agentctl refuses these too.
   if (agent.details.permissionMode === 'bypassPermissions') {
-    return "The session skips permission prompts, so it doesn't take messages from Agent Manager Deluxe";
+    return "The session skips permission prompts, so it doesn't take messages from Agent Manager Delux";
   }
   return null;
 }
