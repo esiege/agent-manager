@@ -19,7 +19,7 @@ import {
 } from '@tanstack/react-table';
 import { Link } from 'react-router';
 import type { AgentRow } from '../lib/agents';
-import { agentPath, isOldSetup, kindLabel, plural, stateRank } from '../lib/labels';
+import { agentModel, agentPath, isOldSetup, kindLabel, modelLabel, plural, stateRank } from '../lib/labels';
 import { OldSetupBadge, StateBadge } from './Badges';
 import { CopyIcon } from './Copy';
 import { RelativeTime } from './Time';
@@ -108,6 +108,19 @@ function StateCell({ agent }: { agent: AgentView }) {
   );
 }
 
+/** The model it uses now, by its short name; the full id is in the tooltip. */
+export function ModelCell({ model }: { model: string | null }) {
+  if (!model) return <Dash />;
+  const label = modelLabel(model);
+  return (
+    <Tooltip label={model} disabled={label === model} openDelay={400}>
+      <Text span size="sm" style={{ whiteSpace: 'nowrap' }}>
+        {label}
+      </Text>
+    </Tooltip>
+  );
+}
+
 /** The story, and under it the latest finished work when there is some. */
 function StoryCell({ agent }: { agent: AgentView }) {
   const result = agent.result;
@@ -157,6 +170,13 @@ export const AGENT_COLUMNS = [
     header: 'Project',
     sortingFn: 'text',
     cell: ({ getValue }) => getValue() || <Dash />,
+  }),
+  col.accessor((a) => agentModel(a) ?? '', {
+    id: 'model',
+    header: 'Model',
+    sortingFn: 'text',
+    meta: { nowrap: true },
+    cell: ({ getValue }) => <ModelCell model={getValue() || null} />,
   }),
   col.accessor((a) => stateRank(a.effectiveState), {
     id: 'state',

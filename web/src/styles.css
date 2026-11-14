@@ -577,6 +577,11 @@
 }
 
 /* The machine name gives way first. */
+.am-tile-model {
+  flex: none;
+  white-space: nowrap;
+}
+
 .am-tile-extra-text {
   overflow: hidden;
   text-overflow: ellipsis;

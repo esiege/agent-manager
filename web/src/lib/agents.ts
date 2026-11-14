@@ -4,7 +4,7 @@ import { isRunning, unfinishedReason, type AgentState, type AgentView } from '@a
 import { formatAbsolute } from './time';
 import type { CsvColumn } from './csv';
 import { jsonCell } from './csv';
-import { kindLabel, STATE_LABEL } from './labels';
+import { agentModel, kindLabel, STATE_LABEL } from './labels';
 
 export interface AgentFilters {
   q: string;
@@ -202,6 +202,7 @@ export const AGENT_CSV_COLUMNS: CsvColumn<AgentView>[] = [
   { header: 'kind', value: (a) => a.kind },
   { header: 'machine', value: (a) => a.machine },
   { header: 'project', value: (a) => a.project },
+  { header: 'model', value: (a) => agentModel(a) },
   { header: 'parentId', value: (a) => a.parentId },
   { header: 'state', value: (a) => a.effectiveState },
   { header: 'stateLabel', value: (a) => STATE_LABEL[a.effectiveState] },

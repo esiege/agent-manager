@@ -88,3 +88,29 @@ export function agentPath(id: string): string {
 export function plural(n: number, one: string, many = `${one}s`): string {
   return `${n} ${n === 1 ? one : many}`;
 }
+
+const MODEL_FAMILIES = ['opus', 'sonnet', 'haiku', 'fable', 'mythos'];
+
+/**
+ * A model id as people say it: "claude-opus-5-5" is "Opus 5.5", "claude-sonnet-4-5-20250929" is
+ * "Sonnet 4.5", "claude-opus-5-5[1m]" is "Opus 5.5 (1M)". An id it can't read is shown as it is.
+ */
+export function modelLabel(model: string): string {
+  const long = /\[1m\]$/i.test(model);
+  const parts = model
+    .replace(/\[[^\]]*\]$/, '')
+    .toLowerCase()
+    .split('-')
+    .filter((p) => p !== 'claude' && !/^\d{8}$/.test(p));
+  const family = parts.find((p) => MODEL_FAMILIES.includes(p));
+  const version = parts.filter((p) => /^\d{1,2}$/.test(p));
+  if (!family || parts.length !== version.length + 1) return model;
+  const name = family[0]!.toUpperCase() + family.slice(1);
+  return `${name}${version.length ? ` ${version.join('.')}` : ''}${long ? ' (1M)' : ''}`;
+}
+
+/** The model an agent uses now, from what its reports said, or null. */
+export function agentModel(agent: Pick<AgentView, 'details'>): string | null {
+  const m = agent.details?.model;
+  return typeof m === 'string' && m ? m : null;
+}

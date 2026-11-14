@@ -2,14 +2,18 @@
 // sub-agents, timeline, details and logs.
 
 import {
+  costOf,
   isRunning,
+  mergeUsage,
+  totalTokens,
   unfinishedReason,
   type AgentDetailResponse,
   type AgentEvent,
   type AgentView,
   type LogEntry,
+  type TokenUsage,
 } from '@agent-manager-delux/shared';
-import { Alert, Anchor, Box, Button, Group, Paper, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core';
+import { Alert, Anchor, Box, Button, Group, Paper, SimpleGrid, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
 import { IconAlertTriangle, IconArrowLeft, IconExternalLink } from '@tabler/icons-react';
 import {
   createColumnHelper,
@@ -34,7 +38,8 @@ import { useStateFlash } from '../hooks/useStateFlash';
 import { api } from '../lib/api';
 import { AGENT_CSV_COLUMNS } from '../lib/agents';
 import { jsonCell, type CsvColumn } from '../lib/csv';
-import { agentPath, isOldSetup, kindLabel, plural, safeHref, stateRank } from '../lib/labels';
+import { agentModel, agentPath, isOldSetup, kindLabel, modelLabel, plural, safeHref, stateRank } from '../lib/labels';
+import { formatCost, formatCount } from '../lib/reporting';
 import { formatAbsolute, formatPrecise, syncServerClock } from '../lib/time';
 import { usePolling } from '../lib/usePolling';
 import { useSortParam } from '../lib/urlState';
@@ -144,6 +149,7 @@ function AgentHeader({ agent, flash }: { agent: AgentView; flash: boolean }) {
         <SimpleGrid cols={{ base: 2, sm: 3, lg: 6 }} spacing="sm">
           <Meta label="Kind">{kindLabel(agent.kind)}</Meta>
           <Meta label="Machine">{agent.machine}</Meta>
+          <Meta label="Model">{modelText(agent)}</Meta>
           <Meta label="Project">{agent.project || '–'}</Meta>
           <Meta label="First seen">
             <RelativeTime iso={agent.firstSeen} /> <Text span size="xs" c="dimmed">({formatAbsolute(agent.firstSeen)})</Text>
@@ -367,6 +373,77 @@ function Timeline({ agentId, events }: { agentId: string; events: AgentEvent[] }
   );
 }
 
+function modelText(agent: AgentView): ReactNode {
+  const model = agentModel(agent);
+  if (!model) return '–';
+  const label = modelLabel(model);
+  return label === model ? model : <span title={model}>{label}</span>;
+}
+
+// ---- Tokens by model ----
+
+/** Every token the session and its sub-agents used, per model, with what it'd cost on the API. */
+function TokensByModel({ agent, subAgents }: { agent: AgentView; subAgents: AgentView[] }) {
+  const rows = [agent, ...subAgents].reduce<TokenUsage[]>((sum, a) => mergeUsage(sum, a.usageTotals ?? []), []);
+  if (rows.length === 0) return null;
+  const costs = rows.map(costOf);
+  const sum = (f: (u: TokenUsage) => number) => rows.reduce((n, u) => n + f(u), 0);
+  const priced = costs.filter((c): c is number => c !== null);
+  const num = { ta: 'right' as const, style: { whiteSpace: 'nowrap' as const } };
+  return (
+    <Section
+      title="Tokens by model"
+      note={subAgents.length ? 'This session and its sub-agents' : undefined}
+    >
+      <Table.ScrollContainer minWidth={640}>
+        <Table fz="sm" verticalSpacing={4} aria-label="Tokens by model">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Model</Table.Th>
+              <Table.Th {...num}>Input</Table.Th>
+              <Table.Th {...num}>Output</Table.Th>
+              <Table.Th {...num}>Cache write</Table.Th>
+              <Table.Th {...num}>Cache read</Table.Th>
+              <Table.Th {...num}>Total</Table.Th>
+              <Table.Th {...num}>
+                <Tooltip label="What these tokens would cost at API list prices" withArrow>
+                  <span>API cost</span>
+                </Tooltip>
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {rows.map((u, i) => (
+              <Table.Tr key={u.model}>
+                <Table.Td title={u.model}>{modelLabel(u.model)}</Table.Td>
+                <Table.Td {...num}>{formatCount(u.input)}</Table.Td>
+                <Table.Td {...num}>{formatCount(u.output)}</Table.Td>
+                <Table.Td {...num}>{formatCount(u.cacheWrite)}</Table.Td>
+                <Table.Td {...num}>{formatCount(u.cacheRead)}</Table.Td>
+                <Table.Td {...num} fw={600}>{formatCount(totalTokens(u))}</Table.Td>
+                <Table.Td {...num}>{costs[i] === null ? '–' : formatCost(costs[i]!)}</Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+          {rows.length > 1 && (
+            <Table.Tfoot>
+              <Table.Tr fw={600}>
+                <Table.Td>All models</Table.Td>
+                <Table.Td {...num}>{formatCount(sum((u) => u.input))}</Table.Td>
+                <Table.Td {...num}>{formatCount(sum((u) => u.output))}</Table.Td>
+                <Table.Td {...num}>{formatCount(sum((u) => u.cacheWrite))}</Table.Td>
+                <Table.Td {...num}>{formatCount(sum((u) => u.cacheRead))}</Table.Td>
+                <Table.Td {...num}>{formatCount(sum(totalTokens))}</Table.Td>
+                <Table.Td {...num}>{priced.length ? formatCost(priced.reduce((n, c) => n + c, 0)) : '–'}</Table.Td>
+              </Table.Tr>
+            </Table.Tfoot>
+          )}
+        </Table>
+      </Table.ScrollContainer>
+    </Section>
+  );
+}
+
 // ---- Sub-agents ----
 
 function SubAgents({ items, flashing }: { items: AgentView[]; flashing: ReadonlySet<string> }) {
@@ -542,6 +619,7 @@ export function AgentDetailPage() {
               </Suspense>
             </Section>
           )}
+          <TokensByModel agent={data.agent} subAgents={data.children} />
           {data.children.length > 0 && <SubAgents items={data.children} flashing={flashing} />}
           <Timeline agentId={data.agent.id} events={data.events} />
           <Section title="Details">

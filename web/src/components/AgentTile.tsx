@@ -7,7 +7,7 @@ import { IconEyeOff } from '@tabler/icons-react';
 import type { CSSProperties, ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { AgentGroup } from '../lib/agents';
-import { agentPath, plural, STATE_COLOR, STATE_LABEL } from '../lib/labels';
+import { agentModel, agentPath, modelLabel, plural, STATE_COLOR, STATE_LABEL } from '../lib/labels';
 import { RelativeTime } from './Time';
 
 function cx(...names: (string | false | null | undefined)[]): string {
@@ -53,6 +53,7 @@ export function AgentTile({ group, flashing, onHide }: AgentTileProps) {
   const tinted = wantsOwner || unfinished !== null;
   // The task, or failing that the low-level activity, dimmed.
   const doing = lead.task || lead.activity;
+  const model = agentModel(lead);
   const nothingYet = !lead.story && !doing && !lead.prompt && !result && !unfinished;
 
   return (
@@ -99,6 +100,12 @@ export function AgentTile({ group, flashing, onHide }: AgentTileProps) {
         </div>
 
         <div className="am-tile-foot">
+          {model && (
+            <span className="am-tile-model" title={model}>
+              {modelLabel(model)}
+              <span aria-hidden="true"> ·</span>
+            </span>
+          )}
           <FootExtra>{lead.machine}</FootExtra>
           {group.instances.length > 1 && <FootExtra>{plural(group.instances.length, 'session')}</FootExtra>}
           {threads > 0 && <FootExtra>{plural(threads, 'thread')}</FootExtra>}
