@@ -352,7 +352,7 @@ export function PerformancePage() {
 
   return (
     <>
-      <PageHeader title="Game">
+      <PageHeader title="Game Performance">
         <UpdatedAgo updatedAt={updatedAt} error={error} />
         {filter('Game', 'game', view?.games ?? [], game)}
         {filter('Machine', 'machine', view?.machines ?? [], machine)}
