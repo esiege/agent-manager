@@ -28,15 +28,36 @@
 
 ## Get started in 3 steps
 
-### 1. Deploy your own copy
+### 1. Set up your own copy
 
-Make an empty folder, open Claude Code in it, and paste this:
+Pick where it runs:
+
+| | ☁️ In the cloud (recommended) | 💻 On this PC |
+| --- | --- | --- |
+| **Reachable from** | Every PC, and your phone | This PC only |
+| **Sign-in** | GitHub, your account only | None, since only this PC can reach it |
+| **Has to be running** | Nothing, it's always up | Two terminal windows |
+| **Needs** | A free [Azure account](https://azure.microsoft.com/free) | Nothing extra |
+| **Cost** | Cents a month | Free |
+| **Good for** | Agents on several PCs | Trying it out, or one machine |
+
+Then make an empty folder, open Claude Code in it, and paste the prompt for your choice.
+
+**☁️ In the cloud**
 
 ```text
-Read https://raw.githubusercontent.com/esiege/agent-manager-delux/main/deploy.md and deploy my own Agent Manager Delux from this folder.
+Read https://raw.githubusercontent.com/esiege/agent-manager-delux/main/deploy.md and deploy my own Agent Manager Delux to Azure from this folder.
 ```
 
-Claude Code checks your tools, gets the code and builds it. Then it walks you through signing in to Azure and puts the site on the Free plan, where only your GitHub account can sign in. It stops and asks whenever it needs you. You need an [Azure account](https://azure.microsoft.com/free) (the free one is enough) and about 10 minutes.
+**💻 On this PC**
+
+```text
+Read https://raw.githubusercontent.com/esiege/agent-manager-delux/main/deploy.md and set up Agent Manager Delux to run on this PC from this folder.
+```
+
+Claude Code checks your tools, gets the code and builds it. For the cloud, it walks you through signing in to Azure and deploys the site on the Free plan. On this PC, it gives you the two commands that start it. It stops and asks whenever it needs you, and takes about 10 minutes.
+
+You can start on this PC and move to the cloud later, but your data stays behind.
 
 <details>
 <summary><b>Other ways to set it up</b></summary>
@@ -44,17 +65,16 @@ Claude Code checks your tools, gets the code and builds it. Then it walks you th
 
 | If you... | Do this |
 | --- | --- |
-| Already cloned this repo | Open Claude Code in the clone and say: *Read deploy.md in this repo and deploy my own Agent Manager Delux.* |
-| Use a different agent | Send it the same sentence. Any agent that can run shell commands can follow [deploy.md](deploy.md). |
-| Would rather do it yourself | Follow [Deploy to Azure](#deploy-to-azure): two commands. |
-| Want to try it on your PC first | See *Run it locally* under [For contributors](#for-contributors). No Azure needed. |
+| Already cloned this repo | Open Claude Code in the clone and say: *Read deploy.md in this repo and set up Agent Manager Delux* (in the cloud, or on this PC). |
+| Use a different agent | Send it the same prompt. Any agent that can run shell commands can follow [deploy.md](deploy.md). |
+| Would rather do it yourself | For the cloud, follow [Deploy to Azure](#deploy-to-azure): two commands. For this PC, see *Run it locally* under [For contributors](#for-contributors). |
 | Already deployed, and want the latest | Run `git pull`, then `./scripts/deploy.ps1 -SkipInfra`. |
 
 </details>
 
 ### 2. Copy this sentence
 
-Once your site is live, copy this sentence. The site's **Instructions** tab has it with your address filled in.
+Once your site is running, copy this sentence. The site's **Instructions** tab has it with your address filled in (`http://localhost:5173` on this PC).
 
 > Read `https://<your-site>/instructions.md` and set yourself up to report to Agent Manager Delux.
 
