@@ -182,7 +182,7 @@ export function InstructionsPage() {
 
         <aside className="am-side">
           <SideItem
-            title="Already set up?"
+            title="Need to update?"
             description="Update a PC whose agents are marked “old version” by sending its agent the update sentence."
             sentence={updateSentence}
             copyLabel="Copy update sentence"
