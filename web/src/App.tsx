@@ -12,7 +12,7 @@ import { OverviewPage } from './pages/OverviewPage';
 import { SettingsPage } from './pages/SettingsPage';
 
 // The Markdown renderer is only needed on the Instructions and Blockers tabs.
-// The charts are only needed on the Reporting and Performance tabs.
+// The charts are only needed on the Reporting and Game tabs.
 const ReportingPage = lazy(() => import('./pages/ReportingPage').then((m) => ({ default: m.ReportingPage })));
 const PerformancePage = lazy(() => import('./pages/PerformancePage').then((m) => ({ default: m.PerformancePage })));
 const PerfSessionPage = lazy(() => import('./pages/PerfSessionPage').then((m) => ({ default: m.PerfSessionPage })));

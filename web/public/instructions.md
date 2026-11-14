@@ -205,7 +205,7 @@ If one process watches several agents of one kind on a machine, it can send `{"m
 
 ## Performance data from games
 
-A game or app you build can send its frame rate, frame times and memory from every machine it runs on, for the Performance tab. That uses its own two calls and its own kind of key: follow `$MANAGER_URL/performance.md`. To read what games have sent, run `node "$HOME/.agent-manager/agentctl.js" perf` (one line a session) or `perf <sessionId>` (everything about one, as JSON).
+A game or app you build can send its frame rate, frame times and memory from every machine it runs on, for the Game tab. That uses its own two calls and its own kind of key: follow `$MANAGER_URL/performance.md`. To read what games have sent, run `node "$HOME/.agent-manager/agentctl.js" perf` (one line a session) or `perf <sessionId>` (everything about one, as JSON).
 
 ## Check that it works
 

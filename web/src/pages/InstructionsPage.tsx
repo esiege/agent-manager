@@ -191,7 +191,7 @@ export function InstructionsPage() {
           />
           <SideItem
             title="Building a game?"
-            description="Adds performance reporting to the game, so its frame rate, frame times and memory show up on the Performance tab for every machine it runs on, and you can compare builds and GPUs."
+            description="Adds performance reporting to the game, so its frame rate, frame times and memory show up on the Game tab for every machine it runs on, and you can compare builds and GPUs."
             sentence={performanceSentence}
             copyLabel="Copy performance sentence"
             link={{ href: PERFORMANCE_PATH, label: 'Open performance page' }}

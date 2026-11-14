@@ -1,4 +1,4 @@
-// The Performance tab: how the games we build ran, on every machine that sent data.
+// The Game tab: how the games we build ran, on every machine that sent data.
 // Sessions compared by machine, build or GPU, then every session; a row opens its charts.
 
 import '@mantine/charts/styles.css';
@@ -352,7 +352,7 @@ export function PerformancePage() {
 
   return (
     <>
-      <PageHeader title="Performance">
+      <PageHeader title="Game">
         <UpdatedAgo updatedAt={updatedAt} error={error} />
         {filter('Game', 'game', view?.games ?? [], game)}
         {filter('Machine', 'machine', view?.machines ?? [], machine)}

@@ -100,7 +100,7 @@ export function PerfSessionPage() {
   if (!data || !charts) {
     return (
       <>
-        <PageHeader title="Performance session" />
+        <PageHeader title="Game session" />
         {error ? <LoadError message={error.message} onRetry={error.status === 404 ? undefined : refresh} /> : <TableSkeleton rows={8} />}
       </>
     );

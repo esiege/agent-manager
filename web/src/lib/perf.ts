@@ -1,4 +1,4 @@
-// The Performance tab's sums: sessions compared by machine, build or GPU, and one session's
+// The Game tab's sums: sessions compared by machine, build or GPU, and one session's
 // samples shaped for its charts. Pure, so it can be tested without a browser.
 
 import {

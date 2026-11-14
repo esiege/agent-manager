@@ -1,6 +1,6 @@
 # Agent Manager Delux: sending performance data from a game
 
-You are adding performance reporting to a game or app, so its frame rate, frame times and memory show up on the **Performance** tab of Agent Manager Delux for every machine it runs on. This page tells you what to send. It is plain HTTPS and JSON, so it works from any engine.
+You are adding performance reporting to a game or app, so its frame rate, frame times and memory show up on the **Game** tab of Agent Manager Delux for every machine it runs on. This page tells you what to send. It is plain HTTPS and JSON, so it works from any engine.
 
 - **`$MANAGER_URL`** below means the address you fetched this page from, without `/performance.md`.
 - **The key** goes in the `X-Agent-Manager-Key` header of every call (not `Authorization`, which the host replaces). Use a **game key**: the person makes one on the **Settings** tab, choosing "A game (performance data only)". A game key can only make the two calls on this page, so it is safe to put in a build that goes to other people's machines. Never put a machine key (the one in `AGENT_MANAGER_KEY`) in a build. Keep the game key out of a public repository all the same: load it from a build setting or a file that isn't committed.

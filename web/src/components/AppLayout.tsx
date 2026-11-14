@@ -37,7 +37,7 @@ const TABS = [
   { to: '/dashboard', label: 'Dashboard', icon: IconLayoutDashboard },
   { to: '/blockers', label: 'Blockers', icon: IconHandStop },
   { to: '/reporting', label: 'Reporting', icon: IconChartHistogram },
-  { to: '/performance', label: 'Performance', icon: IconGauge },
+  { to: '/performance', label: 'Game', icon: IconGauge },
   { to: '/agents', label: 'Agents', icon: IconRobot },
   { to: '/logs', label: 'Logs', icon: IconLogs },
   { to: '/instructions', label: 'Instructions', icon: IconCompass },
