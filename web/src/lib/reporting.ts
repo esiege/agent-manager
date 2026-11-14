@@ -55,12 +55,14 @@ export interface DayRow extends GroupHours {
   /** ISO date of the bucket's first day (local time). */
   day: string;
   cost: number;
+  tokens: number;
 }
 
 export interface ProjectRow extends GroupHours {
   project: string;
   hours: number;
   cost: number;
+  tokens: number;
 }
 
 export interface ModelRow {
@@ -77,6 +79,7 @@ export interface StoryRow {
   hours: number;
   requests: number;
   cost: number;
+  tokens: number;
 }
 
 export interface Report {
@@ -170,11 +173,11 @@ export function buildReport(data: ReportingResponse, filters: Filters): Report {
   };
   const byGroup = emptyGroups();
   const costByGroup = emptyGroups();
-  const days = new Map<string, DayRow>(buckets(nowMs, data.days, bucket).map((day) => [day, { day, ...emptyGroups(), cost: 0 }]));
+  const days = new Map<string, DayRow>(buckets(nowMs, data.days, bucket).map((day) => [day, { day, ...emptyGroups(), cost: 0, tokens: 0 }]));
   const projects = new Map<string, ProjectRow>();
   const projectRow = (project: string) => {
     let row = projects.get(project);
-    if (!row) projects.set(project, (row = { project, ...emptyGroups(), hours: 0, cost: 0 }));
+    if (!row) projects.set(project, (row = { project, ...emptyGroups(), hours: 0, cost: 0, tokens: 0 }));
     return row;
   };
   const models = new Map<string, ModelRow>();
@@ -185,7 +188,7 @@ export function buildReport(data: ReportingResponse, filters: Filters): Report {
     const project = projectOf(agentId);
     const key = `${project}\u0000${name}`;
     let row = stories.get(key);
-    if (!row) stories.set(key, (row = { story: name, project, type, source, hours: 0, requests: 0, cost: 0 }));
+    if (!row) stories.set(key, (row = { story: name, project, type, source, hours: 0, requests: 0, cost: 0, tokens: 0 }));
     return row;
   };
 
@@ -227,9 +230,16 @@ export function buildReport(data: ReportingResponse, filters: Filters): Report {
     }
     costByGroup[group] += cost;
     const day = days.get(bucketOf(Date.parse(u.at), bucket));
-    if (day) day.cost += cost;
-    projectRow(projectOf(u.agentId)).cost += cost;
-    storyRow(u.agentId, u.story, type, source).cost += cost;
+    if (day) {
+      day.cost += cost;
+      day.tokens += tokens;
+    }
+    const p = projectRow(projectOf(u.agentId));
+    p.cost += cost;
+    p.tokens += tokens;
+    const s = storyRow(u.agentId, u.story, type, source);
+    s.cost += cost;
+    s.tokens += tokens;
     for (const m of u.usage) {
       const row = models.get(m.model) ?? { model: m.model, tokens: 0, cost: 0 };
       row.tokens += totalTokens(m);

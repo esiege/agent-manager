@@ -1,5 +1,6 @@
 import type { ReportingAgent, ReportingResponse } from '@agent-manager-deluxe/shared';
 import { describe, expect, it } from 'vitest';
+import { allowancePerDay, convertPeriod, planTokens } from '../src/lib/plans';
 import { buildReport, formatCost, formatHours } from '../src/lib/reporting';
 
 const agent = (id: string, extra: Partial<ReportingAgent> = {}): ReportingAgent => ({
@@ -72,5 +73,15 @@ describe('formatting', () => {
   it('reads well at every size', () => {
     expect([0.25, 2.5, 140].map(formatHours)).toEqual(['15 min', '2.5 h', '140 h']);
     expect([0, 4.2, 1234, 25_000].map(formatCost)).toEqual(['$0', '$4.20', '$1,234', '$25.0K']);
+  });
+});
+
+describe('plans', () => {
+  it('fills in a plan per week or month, and spreads it over a window', () => {
+    expect(planTokens('pro', 'week')).toBe(50);
+    expect(planTokens('pro', 'month')).toBe(210);
+    expect(planTokens('custom', 'week')).toBeNull();
+    expect(convertPeriod(210, 'month', 'week')).toBe(49);
+    expect(allowancePerDay({ plan: 'pro', tokens: 70, period: 'week' })).toBe(10_000_000);
   });
 });

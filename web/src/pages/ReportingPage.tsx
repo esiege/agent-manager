@@ -16,6 +16,7 @@ import {
   Anchor,
   Badge,
   Group,
+  NumberInput,
   Paper,
   SegmentedControl,
   Select,
@@ -27,12 +28,14 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
+import { useLocalStorage } from '@mantine/hooks';
 import { useMemo, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { PageHeader } from '../components/PageHeader';
 import { EmptyState, LoadError, TableSkeleton } from '../components/States';
 import { UpdatedAgo } from '../components/Time';
 import { api } from '../lib/api';
+import { allowancePerDay, convertPeriod, CUSTOM_PLAN, DEFAULT_PLAN, PLANS, planTokens, type PlanPeriod, type PlanSettings } from '../lib/plans';
 import { buildReport, formatCost, formatCount, formatHours, type GroupHours, type Report, type TypeRow } from '../lib/reporting';
 import { useUrlState } from '../lib/urlState';
 import { usePolling } from '../lib/usePolling';
@@ -43,6 +46,15 @@ const WINDOWS = [
   { value: '90', label: '90 days' },
   { value: '365', label: '1 year' },
 ];
+
+/** Plan view: tokens against what the plan allows, instead of dollars at API prices. */
+interface PlanView {
+  /** Tokens the plan allows over the whole window. */
+  allowance: number;
+  /** Tokens the plan allows per bar of the per-day (or per-week) chart. */
+  perBucket: number;
+  days: number;
+}
 
 /** Colors by the job they do: the group a kind of work belongs to (styles.css, light and dark). */
 const GROUP_COLOR: Record<WorkGroup, string> = {
@@ -129,7 +141,7 @@ function TypeLabel({ type, guessed }: { type: WorkType; guessed?: boolean }) {
   );
 }
 
-function Tiles({ report }: { report: Report }) {
+function Tiles({ report, plan }: { report: Report; plan: PlanView | null }) {
   const t = report.totals;
   const tech = report.byGroup.technical;
   const nonTech = report.byGroup['non-technical'];
@@ -144,15 +156,23 @@ function Tiles({ report }: { report: Report }) {
       <Stat label="Requests" value={formatCount(t.requests)} note={finishRate !== null ? `${finishRate}% finished` : undefined} />
       <Stat label="Finished work" value={formatCount(t.results)} note="reports of finished work" />
       <Stat label="Tokens" value={formatCount(t.tokens)} note={t.tokens ? 'incl. cache reads and writes' : 'none counted yet'} />
-      <Stat
-        label="API cost"
-        value={formatCost(t.cost)}
-        note={
-          <Tooltip label="What these tokens would cost at Anthropic's API list prices. On a Claude subscription they aren't billed per token." multiline maw={300}>
-            <span style={{ textDecoration: 'underline dotted', cursor: 'help' }}>at API list prices</span>
-          </Tooltip>
-        }
-      />
+      {plan ? (
+        <Stat
+          label="Plan usage"
+          value={plan.allowance ? `${Math.round((t.tokens / plan.allowance) * 100)}%` : '–'}
+          note={`${formatCount(t.tokens)} of ${formatCount(plan.allowance)} tokens in ${plan.days} days`}
+        />
+      ) : (
+        <Stat
+          label="API cost"
+          value={formatCost(t.cost)}
+          note={
+            <Tooltip label="What these tokens would cost at Anthropic's API list prices. On a Claude subscription they aren't billed per token." multiline maw={300}>
+              <span style={{ textDecoration: 'underline dotted', cursor: 'help' }}>at API list prices</span>
+            </Tooltip>
+          }
+        />
+      )}
     </SimpleGrid>
   );
 }
@@ -223,13 +243,14 @@ function TimeByType({ report }: { report: Report }) {
   );
 }
 
-function TimeOverTime({ report }: { report: Report }) {
+function TimeOverTime({ report, plan }: { report: Report; plan: PlanView | null }) {
   const data = report.byDay.map((d) => ({
     day: shortDay(d.day, report.bucket),
     technical: Number(d.technical.toFixed(2)),
     'non-technical': Number(d['non-technical'].toFixed(2)),
     other: Number(d.other.toFixed(2)),
     cost: Number(d.cost.toFixed(2)),
+    tokens: d.tokens,
   }));
   return (
     <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md" mb="md">
@@ -247,9 +268,25 @@ function TimeOverTime({ report }: { report: Report }) {
           {...BAR_LOOK}
         />
       </Section>
-      <Section title={`API cost per ${report.bucket}`} description="Tokens at API list prices, when they were reported.">
+      <Section
+        title={`${plan ? 'Tokens' : 'API cost'} per ${report.bucket}`}
+        description={plan ? `Tokens when they were reported, against what the plan allows per ${report.bucket}.` : 'Tokens at API list prices, when they were reported.'}
+      >
         {report.noUsage ? (
           <NoUsageYet />
+        ) : plan ? (
+          <BarChart
+            h={240}
+            data={data}
+            dataKey="day"
+            series={[{ name: 'tokens', label: 'Tokens', color: 'var(--am-series-technical)' }]}
+            valueFormatter={formatCount}
+            gridAxis="y"
+            referenceLines={plan.perBucket > 0 ? [{ y: plan.perBucket, label: `Plan: ${formatCount(plan.perBucket)}`, color: 'red.6' }] : undefined}
+            yAxisProps={{ domain: [0, (max: number) => Math.max(max, plan.perBucket)] }}
+            {...BAR_LOOK}
+            barProps={{ radius: [4, 4, 0, 0] }}
+          />
         ) : (
           <BarChart
             h={240}
@@ -269,7 +306,7 @@ function TimeOverTime({ report }: { report: Report }) {
 
 const TOP_PROJECTS = 10;
 
-function Projects({ report }: { report: Report }) {
+function Projects({ report, plan }: { report: Report; plan: PlanView | null }) {
   const rows = report.byProject.slice(0, TOP_PROJECTS);
   const data = rows.map((p) => ({
     project: p.project,
@@ -294,12 +331,12 @@ function Projects({ report }: { report: Report }) {
         yAxisProps={{ width: 150 }}
         {...BAR_LOOK}
       />
-      <Table mt="sm" fz="sm" verticalSpacing={4} aria-label="Hours and cost per project">
+      <Table mt="sm" fz="sm" verticalSpacing={4} aria-label={`Hours and ${plan ? 'tokens' : 'cost'} per project`}>
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Project</Table.Th>
             <Table.Th ta="right">Hours</Table.Th>
-            <Table.Th ta="right">API cost</Table.Th>
+            <Table.Th ta="right">{plan ? 'Tokens' : 'API cost'}</Table.Th>
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -307,7 +344,7 @@ function Projects({ report }: { report: Report }) {
             <Table.Tr key={p.project}>
               <Table.Td>{p.project}</Table.Td>
               <Table.Td ta="right">{formatHours(p.hours)}</Table.Td>
-              <Table.Td ta="right">{report.noUsage ? '–' : formatCost(p.cost)}</Table.Td>
+              <Table.Td ta="right">{report.noUsage ? '–' : plan ? formatCount(p.tokens) : formatCost(p.cost)}</Table.Td>
             </Table.Tr>
           ))}
         </Table.Tbody>
@@ -316,24 +353,24 @@ function Projects({ report }: { report: Report }) {
   );
 }
 
-function Models({ report }: { report: Report }) {
+function Models({ report, plan }: { report: Report; plan: PlanView | null }) {
   if (report.noUsage) {
     return (
-      <Section title="Models" description="Tokens and cost per model.">
+      <Section title="Models" description={plan ? 'Tokens per model.' : 'Tokens and cost per model.'}>
         <NoUsageYet />
       </Section>
     );
   }
-  const data = report.byModel.map((m) => ({ model: m.model, cost: Number((m.cost ?? 0).toFixed(2)) }));
+  const data = report.byModel.map((m) => ({ model: m.model, cost: Number((m.cost ?? 0).toFixed(2)), tokens: m.tokens }));
   return (
-    <Section title="Models" description="API cost per model, with all its tokens.">
+    <Section title="Models" description={plan ? 'Tokens per model.' : 'API cost per model, with all its tokens.'}>
       <BarChart
         h={Math.max(120, data.length * 34 + 30)}
         data={data}
         dataKey="model"
         orientation="vertical"
-        series={[{ name: 'cost', label: 'API cost', color: 'var(--am-series-technical)' }]}
-        valueFormatter={formatCost}
+        series={[plan ? { name: 'tokens', label: 'Tokens', color: 'var(--am-series-technical)' } : { name: 'cost', label: 'API cost', color: 'var(--am-series-technical)' }]}
+        valueFormatter={plan ? formatCount : formatCost}
         gridAxis="x"
         yAxisProps={{ width: 150 }}
         {...BAR_LOOK}
@@ -344,7 +381,7 @@ function Models({ report }: { report: Report }) {
           <Table.Tr>
             <Table.Th>Model</Table.Th>
             <Table.Th ta="right">Tokens</Table.Th>
-            <Table.Th ta="right">API cost</Table.Th>
+            {!plan && <Table.Th ta="right">API cost</Table.Th>}
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -352,7 +389,7 @@ function Models({ report }: { report: Report }) {
             <Table.Tr key={m.model}>
               <Table.Td>{m.model}</Table.Td>
               <Table.Td ta="right">{formatCount(m.tokens)}</Table.Td>
-              <Table.Td ta="right">{m.cost === null ? 'no price known' : formatCost(m.cost)}</Table.Td>
+              {!plan && <Table.Td ta="right">{m.cost === null ? 'no price known' : formatCost(m.cost)}</Table.Td>}
             </Table.Tr>
           ))}
         </Table.Tbody>
@@ -361,7 +398,7 @@ function Models({ report }: { report: Report }) {
   );
 }
 
-function Breakdown({ report }: { report: Report }) {
+function Breakdown({ report, plan }: { report: Report; plan: PlanView | null }) {
   const total = report.totals.hours;
   const rows: TypeRow[] = report.byType;
   return (
@@ -378,7 +415,7 @@ function Breakdown({ report }: { report: Report }) {
               <Table.Th ta="right">Finished</Table.Th>
               <Table.Th ta="right">Finished work</Table.Th>
               <Table.Th ta="right">Tokens</Table.Th>
-              <Table.Th ta="right">API cost</Table.Th>
+              <Table.Th ta="right">{plan ? 'Of plan' : 'API cost'}</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -394,7 +431,7 @@ function Breakdown({ report }: { report: Report }) {
                 <Table.Td ta="right">{r.ended ? `${Math.round((r.finished / r.ended) * 100)}%` : '–'}</Table.Td>
                 <Table.Td ta="right">{r.results}</Table.Td>
                 <Table.Td ta="right">{r.tokens ? formatCount(r.tokens) : '–'}</Table.Td>
-                <Table.Td ta="right">{r.tokens ? formatCost(r.cost) : '–'}</Table.Td>
+                <Table.Td ta="right">{!r.tokens ? '–' : !plan ? formatCost(r.cost) : plan.allowance ? `${Math.round((r.tokens / plan.allowance) * 100)}%` : '–'}</Table.Td>
               </Table.Tr>
             ))}
           </Table.Tbody>
@@ -406,7 +443,7 @@ function Breakdown({ report }: { report: Report }) {
 
 const TOP_STORIES = 20;
 
-function Stories({ report }: { report: Report }) {
+function Stories({ report, plan }: { report: Report; plan: PlanView | null }) {
   const rows = report.stories.slice(0, TOP_STORIES);
   return (
     <Section title="Stories" description={`Where the most time went${report.stories.length > TOP_STORIES ? `: top ${TOP_STORIES} of ${report.stories.length}` : ''}.`}>
@@ -419,7 +456,7 @@ function Stories({ report }: { report: Report }) {
               <Table.Th>Kind of work</Table.Th>
               <Table.Th ta="right">Hours</Table.Th>
               <Table.Th ta="right">Requests</Table.Th>
-              <Table.Th ta="right">API cost</Table.Th>
+              <Table.Th ta="right">{plan ? 'Tokens' : 'API cost'}</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -436,7 +473,7 @@ function Stories({ report }: { report: Report }) {
                 </Table.Td>
                 <Table.Td ta="right">{formatHours(s.hours)}</Table.Td>
                 <Table.Td ta="right">{s.requests}</Table.Td>
-                <Table.Td ta="right">{s.cost ? formatCost(s.cost) : '–'}</Table.Td>
+                <Table.Td ta="right">{plan ? (s.tokens ? formatCount(s.tokens) : '–') : s.cost ? formatCost(s.cost) : '–'}</Table.Td>
               </Table.Tr>
             ))}
           </Table.Tbody>
@@ -458,7 +495,7 @@ function NoUsageYet() {
   );
 }
 
-function Notes({ report }: { report: Report }) {
+function Notes({ report, plan }: { report: Report; plan: PlanView | null }) {
   const guessed = report.totals.hours ? report.totals.guessedHours / report.totals.hours : 0;
   const notes: ReactNode[] = [];
   if (report.noUsage) {
@@ -477,7 +514,7 @@ function Notes({ report }: { report: Report }) {
       </>,
     );
   }
-  if (report.totals.unpricedTokens > 0) {
+  if (!plan && report.totals.unpricedTokens > 0) {
     notes.push(<>{formatCount(report.totals.unpricedTokens)} tokens are from models with no known price and are left out of the cost.</>);
   }
   if (notes.length === 0) return null;
@@ -494,6 +531,64 @@ function Notes({ report }: { report: Report }) {
   );
 }
 
+/** The Plan view's settings: pick a plan to fill in its tokens, or type a number of your own. */
+function PlanControls({ settings, onChange }: { settings: PlanSettings; onChange: (next: PlanSettings) => void }) {
+  return (
+    <Group gap="xs" mb="md" align="center" wrap="wrap">
+      <Select
+        aria-label="Claude plan"
+        size="xs"
+        w={150}
+        data={[...PLANS.map((p) => ({ value: p.id, label: p.label })), { value: CUSTOM_PLAN, label: 'Custom' }]}
+        value={settings.plan}
+        allowDeselect={false}
+        onChange={(plan) => plan && onChange({ ...settings, plan, tokens: planTokens(plan, settings.period) ?? settings.tokens })}
+      />
+      <Text size="xs" c="dimmed">
+        allows
+      </Text>
+      <NumberInput
+        aria-label={`Millions of tokens per ${settings.period}`}
+        size="xs"
+        w={110}
+        min={0}
+        step={10}
+        suffix=" M"
+        thousandSeparator=","
+        allowNegative={false}
+        value={settings.tokens}
+        onChange={(value) => {
+          const tokens = typeof value === 'number' ? value : 0;
+          if (tokens !== settings.tokens) onChange({ ...settings, tokens, plan: CUSTOM_PLAN });
+        }}
+      />
+      <Text size="xs" c="dimmed">
+        tokens per
+      </Text>
+      <SegmentedControl
+        aria-label="Plan period"
+        size="xs"
+        data={[
+          { value: 'week', label: 'Week' },
+          { value: 'month', label: 'Month' },
+        ]}
+        value={settings.period}
+        onChange={(value) => {
+          const period = value as PlanPeriod;
+          onChange({ ...settings, period, tokens: planTokens(settings.plan, period) ?? convertPeriod(settings.tokens, settings.period, period) });
+        }}
+      />
+      <Tooltip
+        label="Anthropic doesn't publish token limits for its plans, so the numbers a plan fills in are rough estimates per seat, counting cache reads and writes. Type your own to replace them."
+        multiline
+        maw={320}
+      >
+        <IconInfoCircle size={16} color="var(--mantine-color-dimmed)" aria-label="About these numbers" />
+      </Tooltip>
+    </Group>
+  );
+}
+
 export function ReportingPage() {
   const { params, update } = useUrlState();
   const days = WINDOWS.some((w) => w.value === params.get('days')) ? Number(params.get('days')) : 30;
@@ -504,6 +599,14 @@ export function ReportingPage() {
   });
   const report = useMemo(() => (data ? buildReport(data, { project }) : null), [data, project]);
   const allProjects = useMemo(() => (data ? buildReport(data, { project: null }).projects : []), [data]);
+
+  // Plan or API is how this browser's owner pays, not a filter of the view: kept in the browser.
+  const [billing, setBilling] = useLocalStorage<'api' | 'plan'>({ key: 'am-reporting-billing', defaultValue: 'api', getInitialValueInEffect: false });
+  const [settings, setSettings] = useLocalStorage<PlanSettings>({ key: 'am-reporting-plan', defaultValue: DEFAULT_PLAN, getInitialValueInEffect: false });
+  const plan: PlanView | null =
+    billing === 'plan' && report
+      ? { allowance: allowancePerDay(settings) * days, perBucket: allowancePerDay(settings) * (report.bucket === 'week' ? 7 : 1), days }
+      : null;
 
   return (
     <>
@@ -520,12 +623,22 @@ export function ReportingPage() {
           w={200}
         />
         <SegmentedControl
+          aria-label="Billing"
+          data={[
+            { value: 'api', label: 'API' },
+            { value: 'plan', label: 'Plan' },
+          ]}
+          value={billing}
+          onChange={(value) => setBilling(value as 'api' | 'plan')}
+        />
+        <SegmentedControl
           aria-label="Time window"
           data={WINDOWS}
           value={String(days)}
           onChange={(value) => update({ days: value === '30' ? null : value })}
         />
       </PageHeader>
+      {billing === 'plan' && <PlanControls settings={settings} onChange={setSettings} />}
       {!report ? (
         error ? (
           <LoadError message={error.message} onRetry={refresh} />
@@ -538,17 +651,17 @@ export function ReportingPage() {
         </EmptyState>
       ) : (
         <>
-          <Notes report={report} />
-          <Tiles report={report} />
+          <Notes report={report} plan={plan} />
+          <Tiles report={report} plan={plan} />
           <TimeByType report={report} />
-          <TimeOverTime report={report} />
+          <TimeOverTime report={report} plan={plan} />
           <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md" mb="md">
-            <Projects report={report} />
-            <Models report={report} />
+            <Projects report={report} plan={plan} />
+            <Models report={report} plan={plan} />
           </SimpleGrid>
           <Stack gap="md">
-            <Breakdown report={report} />
-            <Stories report={report} />
+            <Breakdown report={report} plan={plan} />
+            <Stories report={report} plan={plan} />
           </Stack>
         </>
       )}
