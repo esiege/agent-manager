@@ -9,36 +9,42 @@ import {
   Button,
   Container,
   Group,
-  Tabs,
   Text,
   Tooltip,
   useComputedColorScheme,
   useMantineColorScheme,
 } from '@mantine/core';
-import { IconLogout, IconMoon, IconSun } from '@tabler/icons-react';
+import {
+  IconAdjustmentsHorizontal,
+  IconChartHistogram,
+  IconCompass,
+  IconGauge,
+  IconHandStop,
+  IconLayoutDashboard,
+  IconLogout,
+  IconLogs,
+  IconMoon,
+  IconRadar2,
+  IconRobot,
+  IconSun,
+} from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
-import { Link, Outlet, useLocation } from 'react-router';
+import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { api, LOGOUT_URL } from '../lib/api';
 import { useMe } from './AuthGate';
 import { Logo } from './Logo';
 
 const TABS = [
-  { to: '/', label: 'Overview' },
-  { to: '/dashboard', label: 'Dashboard' },
-  { to: '/blockers', label: 'Blockers' },
-  { to: '/reporting', label: 'Reporting' },
-  { to: '/performance', label: 'Performance' },
-  { to: '/agents', label: 'Agents' },
-  { to: '/logs', label: 'Logs' },
-  { to: '/instructions', label: 'Instructions' },
-  { to: '/settings', label: 'Settings' },
+  { to: '/', label: 'Overview', icon: IconRadar2 },
+  { to: '/dashboard', label: 'Dashboard', icon: IconLayoutDashboard },
+  { to: '/blockers', label: 'Blockers', icon: IconHandStop },
+  { to: '/reporting', label: 'Reporting', icon: IconChartHistogram },
+  { to: '/performance', label: 'Performance', icon: IconGauge },
+  { to: '/agents', label: 'Agents', icon: IconRobot },
+  { to: '/logs', label: 'Logs', icon: IconLogs },
+  { to: '/instructions', label: 'Instructions', icon: IconCompass },
+  { to: '/settings', label: 'Settings', icon: IconAdjustmentsHorizontal },
 ] as const;
-
-function currentTab(pathname: string): string | null {
-  if (pathname === '/') return '/';
-  const match = TABS.find((t) => t.to !== '/' && (pathname === t.to || pathname.startsWith(`${t.to}/`)));
-  return match?.to ?? null;
-}
 
 function ThemeToggle() {
   const { setColorScheme } = useMantineColorScheme();
@@ -88,7 +94,7 @@ export function AppLayout() {
   const openBlockers = useOpenBlockers(pathname);
 
   return (
-    <AppShell header={{ height: 124 }} padding={{ base: 'sm', sm: 'md' }}>
+    <AppShell header={{ height: 127 }} padding={{ base: 'sm', sm: 'md' }}>
       <AppShell.Header withBorder={false}>
         <Box h="100%" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <Group h={82} px={{ base: 'sm', sm: 'md' }} justify="space-between" wrap="nowrap" gap="sm">
@@ -116,26 +122,23 @@ export function AppLayout() {
               </Tooltip>
             </Group>
           </Group>
-          <Tabs value={currentTab(pathname)} activateTabWithKeyboard>
-            <Tabs.List className="am-tabs" px={{ base: 4, sm: 'xs' }} aria-label="Sections">
-              {TABS.map((tab) => (
-                <Tabs.Tab
-                  key={tab.to}
-                  value={tab.to}
-                  renderRoot={(props) => <Link {...props} to={tab.to} />}
-                  rightSection={
-                    tab.to === '/blockers' && openBlockers > 0 ? (
-                      <Badge size="xs" circle color="red" aria-label={`${openBlockers} open`}>
-                        {openBlockers}
-                      </Badge>
-                    ) : undefined
-                  }
-                >
-                  {tab.label}
-                </Tabs.Tab>
-              ))}
-            </Tabs.List>
-          </Tabs>
+          <nav className="am-nav" aria-label="Sections">
+            {TABS.map(({ to, label, icon: Icon }) => (
+              <NavLink key={to} to={to} end={to === '/'} className="am-nav-link">
+                <span className="am-nav-inner">
+                  <Icon className="am-nav-icon" size={16} stroke={1.75} aria-hidden />
+                  <span className="am-nav-label" data-label={label}>
+                    {label}
+                  </span>
+                  {to === '/blockers' && openBlockers > 0 && (
+                    <Badge size="xs" circle color="red" aria-label={`${openBlockers} open`}>
+                      {openBlockers}
+                    </Badge>
+                  )}
+                </span>
+              </NavLink>
+            ))}
+          </nav>
         </Box>
       </AppShell.Header>
       <AppShell.Main>

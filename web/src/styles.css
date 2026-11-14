@@ -29,20 +29,86 @@
   background-color: var(--mantine-color-default-hover);
 }
 
-/* Tabs scroll sideways on narrow screens instead of wrapping (U-11). */
-.am-tabs {
-  flex-wrap: nowrap;
+/* The section links under the logo: an icon and a label each, with a line under the current one.
+   They scroll sideways on narrow screens instead of wrapping (U-11). */
+.am-nav {
+  display: flex;
+  gap: 4px;
+  padding-inline: 12px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
+  border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
-.am-tabs::-webkit-scrollbar {
+.am-nav::-webkit-scrollbar {
   display: none;
 }
 
-.am-tabs > * {
-  flex-shrink: 0;
+.am-nav-link {
+  position: relative;
+  flex: none;
+  padding-block: 6px 8px;
+  color: var(--mantine-color-text);
+  font-size: var(--mantine-font-size-sm);
+  line-height: 20px;
+  text-decoration: none;
+  outline: none;
+}
+
+/* The part that lights up on hover, sitting above the line. */
+.am-nav-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  transition: background-color 100ms ease;
+}
+
+@media (hover: hover) {
+  .am-nav-link:hover .am-nav-inner {
+    background-color: var(--mantine-color-default-hover);
+  }
+}
+
+.am-nav-link:focus-visible .am-nav-inner {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
+}
+
+.am-nav-icon {
+  flex: none;
+  color: var(--mantine-color-dimmed);
+}
+
+/* The label keeps room for its bold form, so the links don't shift when one becomes current. */
+.am-nav-label::after {
+  content: attr(data-label);
+  display: block;
+  height: 0;
+  overflow: hidden;
+  font-weight: 600;
+  visibility: hidden;
+}
+
+.am-nav-link[aria-current='page'] {
+  font-weight: 600;
+}
+
+.am-nav-link[aria-current='page'] .am-nav-icon {
+  color: inherit;
+}
+
+.am-nav-link[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background-color: var(--mantine-primary-color-filled);
 }
 
 /* Rendered instructions. */
