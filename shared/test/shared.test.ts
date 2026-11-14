@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  mergeUsage,
   costOf,
   effectiveState,
   INSTRUCTIONS_UPDATED,
@@ -152,5 +153,14 @@ describe('costOf', () => {
 
   it('has no price for a model it doesn’t know', () => {
     expect(costOf({ model: 'gpt-9', ...usage })).toBeNull();
+  });
+});
+
+describe('mergeUsage', () => {
+  const u = (model: string, output: number) => ({ model, input: 1, output, cacheWrite: 2, cacheWrite1h: 1, cacheRead: 3 });
+  it('adds per model, biggest first, without changing its inputs', () => {
+    const totals = [u('a', 1)];
+    expect(mergeUsage(totals, [u('a', 1), u('b', 100)])).toEqual([u('b', 100), { model: 'a', input: 2, output: 2, cacheWrite: 4, cacheWrite1h: 2, cacheRead: 6 }]);
+    expect(totals).toEqual([u('a', 1)]);
   });
 });

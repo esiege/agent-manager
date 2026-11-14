@@ -245,6 +245,8 @@ export interface Agent {
   workType?: WorkType | null;
   link: string | null;
   details: Record<string, unknown>;
+  /** Tokens it has used in all, one entry per model, counted from its reports' usage. */
+  usageTotals?: TokenUsage[];
   lostAfterSeconds: number;
   instructionsVersion: number | null;
   firstSeen: string;

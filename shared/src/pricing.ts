@@ -58,3 +58,16 @@ export function costOf(u: TokenUsage): number | null {
 export function totalTokens(u: TokenUsage): number {
   return u.input + u.output + u.cacheWrite + u.cacheRead;
 }
+
+const USAGE_FIELDS = ['input', 'output', 'cacheWrite', 'cacheWrite1h', 'cacheRead'] as const;
+
+/** Adds usage to running totals, per model. Neither list is changed. Biggest first. */
+export function mergeUsage(totals: readonly TokenUsage[], add: readonly TokenUsage[]): TokenUsage[] {
+  const byModel = new Map(totals.map((u) => [u.model, { ...u }]));
+  for (const u of add) {
+    const t = byModel.get(u.model);
+    if (!t) byModel.set(u.model, { ...u });
+    else for (const f of USAGE_FIELDS) t[f] += u[f];
+  }
+  return [...byModel.values()].sort((a, b) => totalTokens(b) - totalTokens(a));
+}

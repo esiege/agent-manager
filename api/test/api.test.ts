@@ -293,6 +293,17 @@ describe('reporting', () => {
     expect(body.agents[0]).toMatchObject({ id: 'pc/claude/s1', project: 'musik', workType: 'level-design' });
   });
 
+  it('keeps a running total of tokens per model on the agent', async () => {
+    await send({ usage: usage(500) });
+    await send({ usage: [...usage(5), { model: 'claude-haiku-5-5', input: 1, output: 2, cacheWrite: 0, cacheWrite1h: 0, cacheRead: 0 }] });
+    await send({ activity: 'No usage' });
+    const res = await call(agent, 'GET', '/api/v1/agent?id=pc/claude/s1', asOwner);
+    expect((res.body as AgentDetailResponse).agent.usageTotals).toEqual([
+      { model: 'claude-opus-5-5', input: 20, output: 505, cacheWrite: 0, cacheWrite1h: 0, cacheRead: 200 },
+      { model: 'claude-haiku-5-5', input: 1, output: 2, cacheWrite: 0, cacheWrite1h: 0, cacheRead: 0 },
+    ]);
+  });
+
   it('counts a request still running', async () => {
     await send({ prompt: 'Add tests', turn: 'start', state: 'working' });
     tick(60);
