@@ -57,7 +57,7 @@ Read https://raw.githubusercontent.com/esiege/agent-manager-delux/main/deploy.md
 
 Claude Code checks your tools, gets the code and builds it. For the cloud, it walks you through signing in to Azure and deploys the site on the Free plan. On this PC, it gives you the two commands that start it. It stops and asks whenever it needs you, and takes about 10 minutes.
 
-You can start on this PC and move to the cloud later, but your data stays behind.
+You can switch later and take your data with you. The prompts are under *Other ways to set it up*, below.
 
 <details>
 <summary><b>Other ways to set it up</b></summary>
@@ -69,6 +69,8 @@ You can start on this PC and move to the cloud later, but your data stays behind
 | Use a different agent | Send it the same prompt. Any agent that can run shell commands can follow [deploy.md](deploy.md). |
 | Would rather do it yourself | For the cloud, follow [Deploy to Azure](#deploy-to-azure): two commands. For this PC, see *Run it locally* under [For contributors](#for-contributors). |
 | Already deployed, and want the latest | Run `git pull`, then `./scripts/deploy.ps1 -SkipInfra`. |
+| Want to move from this PC to the cloud | Tell Claude Code: *Read https://raw.githubusercontent.com/esiege/agent-manager-delux/main/Docs/Move-To-Cloud.md and move my Agent Manager Delux from this PC to the cloud.* Your data, and the keys your PCs use, come with it. |
+| Want to move from the cloud to this PC | Tell Claude Code: *Read https://raw.githubusercontent.com/esiege/agent-manager-delux/main/Docs/Move-To-Local.md and move my Agent Manager Delux from the cloud to this PC.* At the end it asks whether to delete the Azure resources, or keep them and save where they are for later. |
 
 </details>
 

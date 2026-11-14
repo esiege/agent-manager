@@ -16,7 +16,7 @@ There are two ways to run it. The user's message usually says which one. If it d
 | Needs | A free Azure account | Nothing extra |
 | Cost | Cents a month | Free |
 
-The cloud is the better choice if they run agents on more than one PC, or want to check on them from their phone. "On this PC" is good for trying it out, or if they only use one machine. Data doesn't move from one to the other, so a later switch to the cloud starts empty.
+The cloud is the better choice if they run agents on more than one PC, or want to check on them from their phone. "On this PC" is good for trying it out, or if they only use one machine. They can switch later and take their data with them: see [Docs/Move-To-Cloud.md](Docs/Move-To-Cloud.md) and [Docs/Move-To-Local.md](Docs/Move-To-Local.md).
 
 Then follow [In the cloud](#in-the-cloud) or [On this PC](#on-this-pc).
 
