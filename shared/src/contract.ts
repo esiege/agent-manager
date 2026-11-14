@@ -24,8 +24,11 @@ export type AgentState = ReportedState | 'lost';
 export const TURN_OUTCOMES = ['running', 'finished', 'failed', 'interrupted'] as const;
 export type TurnOutcome = (typeof TURN_OUTCOMES)[number];
 
-/** What an alert subscription can be told about. "unfinished": interrupted, or lost mid-request. */
-export const ALERT_EVENTS = ['finished', 'waiting', 'failed', 'unfinished'] as const;
+/**
+ * What an alert subscription can be told about. "unfinished": interrupted, or lost mid-request.
+ * "blocker": an agent reported something it can't get past without the owner.
+ */
+export const ALERT_EVENTS = ['finished', 'waiting', 'failed', 'unfinished', 'blocker'] as const;
 export type AlertEvent = (typeof ALERT_EVENTS)[number];
 
 /** Where alerts go. ntfy (https://ntfy.sh) is free: the phone app shows them like texts. */
@@ -85,6 +88,15 @@ export const LIMITS = {
   /** Single slow frames in one call, and the worst of them kept on a session. */
   perfHitchesPerCall: 200,
   perfHitchesKept: 50,
+  /** A blocker's one-line description, and the longer one. */
+  blockerTitleLength: 200,
+  blockerDetailsLength: 8000,
+  /** The owner's answer to a blocker. */
+  blockerResolutionLength: 4000,
+  /** Screenshots and videos on one blocker. */
+  blockerMedia: 6,
+  blockerImageBytes: 8 * 1024 * 1024,
+  blockerVideoBytes: 25 * 1024 * 1024,
 } as const;
 
 /** Owner calls that change something must carry this header, which another site can't add (CSRF). */
@@ -253,7 +265,7 @@ export interface AgentView extends Agent {
   runningChildren: number;
 }
 
-export type AgentEventType = 'report' | 'state' | 'action' | 'result' | 'turn' | 'message';
+export type AgentEventType = 'report' | 'state' | 'action' | 'result' | 'turn' | 'message' | 'blocker';
 
 export interface AgentEvent {
   id: string;
@@ -405,6 +417,108 @@ export interface HideAgentsInput {
 export interface HideAgentsResponse {
   /** The ids that were found and changed. */
   agentIds: string[];
+}
+
+// ---- Blockers: what an agent can't get past without the owner ----
+
+/** "open" until the owner answers it ("resolved") or waves it off ("dismissed"). */
+export const BLOCKER_STATUSES = ['open', 'resolved', 'dismissed'] as const;
+export type BlockerStatus = (typeof BLOCKER_STATUSES)[number];
+
+/** What a blocker can show. Anything else is refused, so the page never renders unknown types. */
+export const BLOCKER_MEDIA_TYPES = {
+  'image/png': 'image',
+  'image/jpeg': 'image',
+  'image/webp': 'image',
+  'image/gif': 'image',
+  'video/mp4': 'video',
+  'video/webm': 'video',
+} as const;
+export type BlockerMediaType = keyof typeof BLOCKER_MEDIA_TYPES;
+
+/** Resolved and dismissed blockers stay listed this long. */
+export const BLOCKER_RECENT_DAYS = 7;
+
+/** A screenshot or video attached to a blocker. The bytes are fetched from /blockers/media. */
+export interface BlockerMedia {
+  id: string;
+  contentType: BlockerMediaType;
+  kind: 'image' | 'video';
+  bytes: number;
+  /** The file's name on the agent's PC, without its folder. */
+  name: string | null;
+  at: string;
+}
+
+export interface Blocker {
+  id: string;
+  agentId: string;
+  /** The agent as it was when it reported the blocker. */
+  agentName: string;
+  kind: AgentKind;
+  project: string | null;
+  machine: string;
+  /** One line: what's in the way. */
+  title: string;
+  /** More about it, in Markdown: what was tried, what the agent needs. */
+  details: string | null;
+  media: BlockerMedia[];
+  status: BlockerStatus;
+  createdAt: string;
+  /** When it was resolved or dismissed. */
+  resolvedAt: string | null;
+  /** The owner's login. */
+  resolvedBy: string | null;
+  /** The owner's answer, which the agent reads. */
+  resolution: string | null;
+  /** How the answer reaches the agent, in a few words; set when it's resolved. */
+  delivery: string | null;
+  /** The message that carries the answer to the session, when one was sent. */
+  messageId: string | null;
+  /** Name of the machine key that reported it. Only that key can add media to it. */
+  keyName: string;
+}
+
+/** POST /api/v1/blockers, with a machine key. */
+export interface BlockerInput {
+  agentId: string;
+  title: string;
+  details?: string | null;
+  test?: boolean;
+}
+
+export interface BlockerResponse extends WriteResponse<Blocker> {
+  /** The Blockers tab, where the owner answers it. */
+  blockerUrl: string;
+}
+
+/** POST /api/v1/blockers/resolve, as the owner. */
+export interface ResolveBlockerInput {
+  id: string;
+  status: 'resolved' | 'dismissed';
+  resolution?: string | null;
+}
+
+/** GET /api/v1/blockers: open ones, then those answered in the last BLOCKER_RECENT_DAYS. */
+export interface BlockersResponse {
+  now: string;
+  blockers: Blocker[];
+  /** The messages that carried answers to sessions, so the page can say whether they arrived. */
+  messages: AgentMessage[];
+  /** The agents with open blockers, by id: how they are now, and whether an answer can reach them. */
+  agents: Record<string, BlockerAgentStatus>;
+}
+
+export interface BlockerAgentStatus {
+  state: AgentState;
+  /** Why an answer can't go to the session as a message, or null when it can. */
+  noMessages: string | null;
+}
+
+/** GET /api/v1/blocker?id=, as the owner or with a machine key. */
+export interface BlockerDetailResponse {
+  now: string;
+  blocker: Blocker;
 }
 
 // ---- Responses ----
