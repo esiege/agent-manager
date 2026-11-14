@@ -263,6 +263,58 @@
   }
 }
 
+/* Stands where the full instructions panel goes, until it's opened. */
+.am-full-reveal {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 24px 28px;
+  border: 1px dashed var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-lg);
+  color: var(--mantine-color-text);
+  text-align: left;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+@media (hover: hover) {
+  .am-full-reveal:hover {
+    border-style: solid;
+    border-color: var(--mantine-primary-color-filled);
+    background-color: var(--mantine-color-default-hover);
+  }
+}
+
+.am-full-reveal:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 2px;
+}
+
+.am-full-reveal-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.am-full-reveal-title {
+  font-size: var(--mantine-font-size-lg);
+  font-weight: 600;
+}
+
+.am-full-reveal-desc {
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-sm);
+}
+
+.am-full-reveal-chevron {
+  flex: none;
+  color: var(--mantine-color-dimmed);
+}
+
 .am-full-head {
   padding: 16px 24px;
   border-bottom: 1px solid var(--mantine-color-default-border);

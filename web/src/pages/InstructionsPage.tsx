@@ -1,8 +1,8 @@
 // U-07: the instructions agents read, rendered from the same raw file they fetch (I-01).
 
 import { INSTRUCTIONS_UPDATED, INSTRUCTIONS_VERSION } from '@agent-manager-delux/shared';
-import { Anchor, Box, Button, CopyButton, Group, Paper, Text, Title, Tooltip, Typography } from '@mantine/core';
-import { IconCheck, IconCopy, IconDownload, IconFileText } from '@tabler/icons-react';
+import { Anchor, Box, Button, CopyButton, Group, Paper, Text, Title, Tooltip, Typography, UnstyledButton } from '@mantine/core';
+import { IconBook2, IconCheck, IconChevronDown, IconCopy, IconDownload, IconFileText } from '@tabler/icons-react';
 import { createElement, useState, type ReactNode } from 'react';
 import Markdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -148,18 +148,7 @@ export function InstructionsPage() {
 
   return (
     <>
-      <PageHeader title="Agent Instructions">
-        <Anchor
-          component="button"
-          type="button"
-          size="sm"
-          aria-expanded={showFull}
-          aria-controls="full-instructions"
-          onClick={() => setShowFull((shown) => !shown)}
-        >
-          {showFull ? 'Hide Full Agent Instructions' : 'Show Full Agent Instructions'}
-        </Anchor>
-      </PageHeader>
+      <PageHeader title="Agent Instructions" />
 
       <div className="am-start">
         <ol className="am-steps">
@@ -210,8 +199,18 @@ export function InstructionsPage() {
         </aside>
       </div>
 
-      {showFull && (
-        <Paper withBorder radius="lg" id="full-instructions">
+      {!showFull ? (
+        // Stands in for the panel until it's opened; once open it stays open.
+        <UnstyledButton className="am-full-reveal" onClick={() => setShowFull(true)}>
+          <IconBook2 size={22} stroke={1.75} aria-hidden />
+          <span className="am-full-reveal-text">
+            <span className="am-full-reveal-title">Show Full Agent Instructions</span>
+            <span className="am-full-reveal-desc">Everything an agent reads when you send it the sentence.</span>
+          </span>
+          <IconChevronDown className="am-full-reveal-chevron" size={20} aria-hidden />
+        </UnstyledButton>
+      ) : (
+        <Paper withBorder radius="lg">
           <div className="am-full-head">
             <Group justify="space-between" align="center" gap="sm" wrap="wrap">
               <Title order={2} size="h4">
