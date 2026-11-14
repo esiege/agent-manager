@@ -64,7 +64,7 @@ node "$HOME/.agent-manager/agentctl.js" version
      Keep the checks few and concrete: where to look, and what they'll see there.
    - Keep everything short and plain. Never include secrets, file contents or command lines.
    ```
-6. Tell the person it's done. Sessions that are already open pick up the new version at their next step; there's nothing to restart. On the Agents tab, this PC's sessions lose their "version mismatch" badge once they report again.
+6. Tell the person it's done. Sessions that are already open pick up the new version at their next step; there's nothing to restart. On the Agents tab, this PC's sessions lose their "old version" badge once they report again.
 
 ### If you can't finish the update yourself
 
