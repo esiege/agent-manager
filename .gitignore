@@ -14,3 +14,7 @@ web/public/agentctl.js
 
 # Your deployed site's address (kept local, not published)
 LIVE-SITE.md
+
+# Upload packages the SWA CLI leaves in the repo root while deploying
+/*-api.zip
+/*-app.zip
