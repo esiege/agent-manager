@@ -70,6 +70,142 @@
   padding-right: 44px;
 }
 
+/* ---- Instructions: two steps, with the less common sentences beside them ---- */
+
+.am-start {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 56px;
+  align-items: start;
+  margin-block: var(--mantine-spacing-lg) 40px;
+}
+
+.am-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A dot per step, joined by a thin line. */
+.am-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 0 0 40px 32px;
+}
+
+.am-step::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: var(--mantine-primary-color-filled);
+}
+
+.am-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 21px;
+  bottom: -4px;
+  left: 4px;
+  width: 1px;
+  background-color: var(--mantine-color-default-border);
+}
+
+.am-step:last-child {
+  padding-bottom: 0;
+}
+
+.am-step-label {
+  color: var(--mantine-primary-color-light-color);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.am-step-title {
+  margin: -6px 0 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.am-step-desc {
+  margin: -4px 0 0;
+  color: var(--mantine-color-dimmed);
+}
+
+.am-sentence {
+  align-self: stretch;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background-color: var(--mantine-color-default-hover);
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 14px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  cursor: copy;
+  transition: box-shadow 150ms ease;
+}
+
+@media (hover: hover) {
+  .am-sentence:hover {
+    box-shadow: inset 0 0 0 1px var(--mantine-color-default-border);
+  }
+}
+
+.am-sentence[data-copied] {
+  box-shadow: inset 0 0 0 1px var(--mantine-color-teal-filled);
+}
+
+.am-sentence-url {
+  color: var(--mantine-primary-color-light-color);
+}
+
+.am-side {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding-left: 28px;
+  border-left: 1px solid var(--mantine-color-default-border);
+}
+
+.am-side-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+@media (max-width: 62em) {
+  .am-start {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+  }
+
+  .am-side {
+    padding: 28px 0 0;
+    border-top: 1px solid var(--mantine-color-default-border);
+    border-left: 0;
+  }
+}
+
+.am-full-head {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.am-full-body {
+  padding: 24px;
+}
+
 /* ---- Dashboard ---- */
 
 /* Fills the screen below the header, so the page itself never scrolls. */
