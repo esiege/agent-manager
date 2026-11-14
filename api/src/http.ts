@@ -1,6 +1,7 @@
 // Framework-neutral request and response types, so handlers can be tested without the Functions host.
 
-import type { ApiError } from '@agent-manager/shared';
+import type { ApiError } from '@agent-manager-deluxe/shared';
+import type { MediaStore } from './store/media';
 import type { Store } from './store/types';
 
 export interface Req {
@@ -9,18 +10,24 @@ export interface Req {
   headers: Headers;
   /** Raw body text; empty for GET. */
   body: string;
+  /** The body's bytes, for calls that take a file. */
+  raw?: Buffer;
 }
 
 export interface Res {
   status: number;
   body: unknown;
   headers?: Record<string, string>;
+  /** Sent instead of `body` as JSON, for calls that return a file. */
+  bytes?: Buffer;
 }
 
 export interface Ctx {
   store: Store;
   now: () => Date;
   env: Record<string, string | undefined>;
+  /** Where blocker screenshots and videos go; null when none is set up. */
+  media?: MediaStore | null;
 }
 
 export type Handler = (req: Req, ctx: Ctx) => Promise<Res>;

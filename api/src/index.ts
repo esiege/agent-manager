@@ -4,6 +4,7 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from '@azure/functions';
 import { guarded, type Ctx, type Handler } from './http';
 import { getStore } from './store';
+import { getMediaStore } from './store/media';
 import { heartbeat, postLogs, report } from './handlers/ingest';
 import { agent, agents, getLogs, me } from './handlers/read';
 import { createKey, listKeys, revokeKey } from './handlers/keys';
@@ -12,6 +13,7 @@ import { ackMessage, inbox, sendMessage } from './handlers/messages';
 import { hideAgents } from './handlers/hide';
 import { reporting } from './handlers/reporting';
 import { perfSamples, perfSession, perfSessionDetail, perfSessions } from './handlers/perf';
+import { addBlockerMedia, blocker, blockerMedia, blockers, createBlocker, resolveBlocker } from './handlers/blockers';
 
 function register(name: string, method: 'GET' | 'POST', route: string, handler: Handler) {
   app.http(name, {
@@ -22,21 +24,24 @@ function register(name: string, method: 'GET' | 'POST', route: string, handler: 
       const env = process.env;
       let ctx: Ctx;
       try {
-        ctx = { store: getStore(env), now: () => new Date(), env };
+        ctx = { store: getStore(env), now: () => new Date(), env, media: getMediaStore(env) };
       } catch (e) {
         invocation.error((e as Error).message);
         return { status: 500, jsonBody: { error: (e as Error).message } };
       }
-      const body = method === 'GET' ? '' : await request.text();
+      const raw = method === 'GET' ? undefined : Buffer.from(await request.arrayBuffer());
+      const body = raw ? raw.toString('utf8') : '';
       const res = await guarded(handler, (m) => invocation.error(m))(
-        { method: request.method, url: request.url, headers: request.headers as unknown as Headers, body },
+        { method: request.method, url: request.url, headers: request.headers as unknown as Headers, body, raw },
         ctx,
       );
       // Refusals go to Application Insights with their reason (never secrets: errors don't contain them).
       if (res.status >= 400 && res.status < 500) {
         invocation.warn(`${name} answered ${res.status}: ${(res.body as { error?: string }).error ?? ''}`);
       }
-      return { status: res.status, jsonBody: res.body, headers: { 'cache-control': 'no-store', ...res.headers } };
+      const headers = { 'cache-control': 'no-store', ...res.headers };
+      if (res.bytes) return { status: res.status, body: res.bytes, headers };
+      return { status: res.status, jsonBody: res.body, headers };
     },
   });
 }
@@ -66,6 +71,13 @@ register('saveAlert', 'POST', 'v1/alerts', saveAlert);
 register('deleteAlert', 'POST', 'v1/alerts/delete', deleteAlert);
 register('testAlert', 'POST', 'v1/alerts/test', testAlert);
 register('sweepAlerts', 'POST', 'v1/alerts/sweep', sweepAlerts);
+
+register('createBlocker', 'POST', 'v1/blockers', createBlocker);
+register('addBlockerMedia', 'POST', 'v1/blockers/media', addBlockerMedia);
+register('blockers', 'GET', 'v1/blockers', blockers);
+register('blocker', 'GET', 'v1/blocker', blocker);
+register('blockerMedia', 'GET', 'v1/blockers/media', blockerMedia);
+register('resolveBlocker', 'POST', 'v1/blockers/resolve', resolveBlocker);
 
 register('sendMessage', 'POST', 'v1/messages', sendMessage);
 register('inbox', 'POST', 'v1/inbox', inbox);

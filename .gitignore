@@ -7,6 +7,7 @@ dist/
 # Azure Functions local settings hold secrets
 api/local.settings.json
 api/.local-store.json
+api/.local-media/
 
 # Built by the reporter, served by the web app
 web/public/agentctl.js

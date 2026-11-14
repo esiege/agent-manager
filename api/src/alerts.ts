@@ -1,7 +1,15 @@
 // Alerts (Settings > Alerts): tells subscriptions when an agent finishes, needs the owner,
 // fails, or is cut off mid-request. ntfy is the only channel so far; others go in CHANNELS.
 
-import { effectiveState, maskSecrets, type Agent, type AlertChannel, type AlertEvent, type AlertSubscription } from '@agent-manager/shared';
+import {
+  effectiveState,
+  maskSecrets,
+  type Agent,
+  type AlertChannel,
+  type AlertEvent,
+  type AlertSubscription,
+  type Blocker,
+} from '@agent-manager-deluxe/shared';
 import type { Ctx } from './http';
 
 export interface AlertMessage {
@@ -19,12 +27,19 @@ const PROMPT_LENGTH = 120;
 const NEW_PROMPT = 'A new prompt came before it finished';
 export const LOST_REASON = 'Connection lost mid-request';
 
-const VERBS: Record<AlertEvent, string> = { finished: 'finished', waiting: 'needs you', failed: 'failed', unfinished: 'was cut off' };
+const VERBS: Record<AlertEvent, string> = {
+  finished: 'finished',
+  waiting: 'needs you',
+  failed: 'failed',
+  unfinished: 'was cut off',
+  blocker: 'is blocked',
+};
 const TAGS: Record<AlertMessage['event'], string> = {
   finished: 'white_check_mark',
   waiting: 'hourglass',
   failed: 'rotating_light',
   unfinished: 'warning',
+  blocker: 'construction',
   test: 'bell',
 };
 
@@ -149,7 +164,7 @@ export async function deliver(ctx: Ctx, sub: AlertSubscription, msg: AlertMessag
   return error;
 }
 
-function wants(sub: AlertSubscription, agent: Agent, event: AlertEvent): boolean {
+function wants(sub: AlertSubscription, agent: Pick<Agent, 'project'>, event: AlertEvent): boolean {
   return sub.enabled && sub.events.includes(event) && (sub.projects.length === 0 || sub.projects.includes(agent.project ?? ''));
 }
 
@@ -177,6 +192,28 @@ async function send(ctx: Ctx, subs: AlertSubscription[], agent: Agent, found: De
   }
   await Promise.allSettled(jobs);
   return jobs.length;
+}
+
+export function blockersPage(origin: string, blockerId: string): string {
+  return `${origin}/blockers?${new URLSearchParams({ id: blockerId }).toString()}`;
+}
+
+/** Tells subscriptions about a new blocker. Never throws. */
+export async function notifyBlocker(ctx: Ctx, blocker: Blocker, origin: string): Promise<void> {
+  try {
+    const subs = (await ctx.store.listAlerts()).filter((s) => wants(s, blocker, 'blocker'));
+    if (subs.length === 0) return;
+    const msg: AlertMessage = {
+      event: 'blocker',
+      title: maskSecrets(`${blocker.project || blocker.agentName} ${VERBS.blocker}`),
+      body: clip(maskSecrets(`${blocker.title}
+On ${blocker.machine}`), BODY_LENGTH),
+      click: blockersPage(origin, blocker.id),
+    };
+    await Promise.allSettled(subs.map((s) => deliver(ctx, s, msg)));
+  } catch (e) {
+    console.error(`Blocker alert failed for ${blocker.id}: ${(e as Error).message}`);
+  }
 }
 
 /** Called after an agent is written, with what it was before. Never throws. */

@@ -2,8 +2,9 @@
 // Never used in Azure: see store/index.ts.
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import type { Agent, AgentEvent, AgentKind, AgentMessage, AlertSubscription, LogEntry, PerfSample, PerfSession } from '@agent-manager/shared';
+import type { Agent, AgentEvent, AgentKind, AgentMessage, AlertSubscription, Blocker, LogEntry, PerfSample, PerfSession } from '@agent-manager-deluxe/shared';
 import {
+  BLOCKER_RETENTION_SECONDS,
   isReportingEvent,
   MESSAGE_RETENTION_SECONDS,
   PERF_SAMPLE_RETENTION_SECONDS,
@@ -28,6 +29,8 @@ interface Snapshot {
   /** Missing in files saved before performance data existed. */
   perfSessions?: PerfSession[];
   perfSamples?: PerfSample[];
+  /** Missing in files saved before blockers existed. */
+  blockers?: Blocker[];
 }
 
 export class MemoryStore implements Store {
@@ -39,6 +42,7 @@ export class MemoryStore implements Store {
   private messages: AgentMessage[] = [];
   private perfSessions = new Map<string, PerfSession>();
   private perfSamples = new Map<string, PerfSample>();
+  private blockers = new Map<string, Blocker>();
 
   constructor(
     private readonly file?: string,
@@ -54,6 +58,7 @@ export class MemoryStore implements Store {
       this.messages = snap.messages ?? [];
       for (const p of snap.perfSessions ?? []) this.perfSessions.set(p.id, p);
       for (const p of snap.perfSamples ?? []) this.perfSamples.set(p.id, p);
+      for (const b of snap.blockers ?? []) this.blockers.set(b.id, b);
       this.prune();
     }
   }
@@ -68,6 +73,7 @@ export class MemoryStore implements Store {
     const ago = (seconds: number) => new Date(this.now().getTime() - seconds * 1000).toISOString();
     for (const [id, p] of this.perfSessions) if (p.lastSeen < ago(PERF_SESSION_RETENTION_SECONDS)) this.perfSessions.delete(id);
     for (const [id, p] of this.perfSamples) if (p.receivedAt < ago(PERF_SAMPLE_RETENTION_SECONDS)) this.perfSamples.delete(id);
+    for (const [id, b] of this.blockers) if ((b.resolvedAt ?? b.createdAt) < ago(BLOCKER_RETENTION_SECONDS)) this.blockers.delete(id);
   }
 
   private save() {
@@ -81,6 +87,7 @@ export class MemoryStore implements Store {
       messages: this.messages,
       perfSessions: [...this.perfSessions.values()],
       perfSamples: [...this.perfSamples.values()],
+      blockers: [...this.blockers.values()],
     };
     writeFileSync(this.file, JSON.stringify(snap));
   }
@@ -182,6 +189,22 @@ export class MemoryStore implements Store {
         .filter((m) => m.machine === machine && (!f.agentId || m.agentId === f.agentId) && (!f.status || m.status === f.status))
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         .slice(0, f.limit),
+    );
+  }
+
+  async getBlocker(id: string) {
+    return structuredClone(this.blockers.get(id) ?? null);
+  }
+  async putBlocker(blocker: Blocker) {
+    this.blockers.set(blocker.id, structuredClone(blocker));
+    this.prune();
+    this.save();
+  }
+  async listBlockers(since: string) {
+    return structuredClone(
+      [...this.blockers.values()]
+        .filter((b) => b.status === 'open' || (b.resolvedAt !== null && b.resolvedAt >= since))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     );
   }
 

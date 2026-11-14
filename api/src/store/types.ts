@@ -7,6 +7,7 @@ import {
   type AgentKind,
   type AgentMessage,
   type AlertSubscription,
+  type Blocker,
   type KeyScope,
   type LogEntry,
   type LogLevel,
@@ -58,6 +59,13 @@ export function isReportingEvent(e: AgentEvent): boolean {
 /** Messages to agents are kept a day: long enough to see what happened to them, no longer. */
 export const MESSAGE_RETENTION_SECONDS = 86_400;
 
+/**
+ * Blockers are kept this long after their last change, open or not. Their screenshots and videos
+ * are deleted on the same schedule (infra/main.bicep sets a lifecycle rule on the blob container).
+ */
+export const BLOCKER_RETENTION_DAYS = 90;
+export const BLOCKER_RETENTION_SECONDS = BLOCKER_RETENTION_DAYS * 86_400;
+
 /** Performance sessions are small and carry their totals; samples are the bulk. Counted from the last write. */
 export const PERF_SESSION_RETENTION_SECONDS = PERF_MAX_DAYS * 86_400;
 export const PERF_SAMPLE_RETENTION_SECONDS = PERF_SAMPLE_DAYS * 86_400;
@@ -93,6 +101,11 @@ export interface Store {
   putMessage(message: AgentMessage): Promise<void>;
   /** The messages for agents on one machine, newest first. */
   listMessages(machine: string, filter: MessageFilter): Promise<AgentMessage[]>;
+
+  getBlocker(id: string): Promise<Blocker | null>;
+  putBlocker(blocker: Blocker): Promise<void>;
+  /** Open blockers, and those resolved or dismissed at or after `since`, newest first. */
+  listBlockers(since: string): Promise<Blocker[]>;
 
   getPerfSession(id: string): Promise<PerfSession | null>;
   putPerfSession(session: PerfSession): Promise<void>;

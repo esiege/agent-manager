@@ -1,12 +1,14 @@
 // Cosmos DB (NoSQL API, serverless) store used in Azure.
 // Containers: agents (/id), keys (/id), alerts (/id), events (/agentId, 30-day TTL), logs (/source, 30-day TTL),
-// messages (/machine, 1-day TTL), perfSessions (/id, 1-year TTL), perfSamples (/sessionId, 30-day TTL).
+// messages (/machine, 1-day TTL), perfSessions (/id, 1-year TTL), perfSamples (/sessionId, 30-day TTL),
+// blockers (/id, 90-day TTL from the last change).
 // infra/main.bicep creates the same containers; ensure() creates them too when they're missing.
 
 import { createHash } from 'node:crypto';
 import { CosmosClient, type Container, type SqlParameter } from '@azure/cosmos';
-import type { Agent, AgentEvent, AgentKind, AgentMessage, AlertSubscription, LogEntry, PerfSample, PerfSession } from '@agent-manager/shared';
+import type { Agent, AgentEvent, AgentKind, AgentMessage, AlertSubscription, Blocker, LogEntry, PerfSample, PerfSession } from '@agent-manager-deluxe/shared';
 import {
+  BLOCKER_RETENTION_SECONDS,
   isReportingEvent,
   MESSAGE_RETENTION_SECONDS,
   PERF_SAMPLE_RETENTION_SECONDS,
@@ -37,6 +39,7 @@ const CONTAINERS = {
   messages: { partitionKey: '/machine', defaultTtl: MESSAGE_RETENTION_SECONDS },
   perfSessions: { partitionKey: '/id', defaultTtl: PERF_SESSION_RETENTION_SECONDS },
   perfSamples: { partitionKey: '/sessionId', defaultTtl: PERF_SAMPLE_RETENTION_SECONDS },
+  blockers: { partitionKey: '/id', defaultTtl: BLOCKER_RETENTION_SECONDS },
 } as const;
 
 type Name = keyof typeof CONTAINERS;
@@ -265,6 +268,20 @@ export class CosmosStore implements Store {
     }
     const sql = `SELECT TOP @limit * FROM c WHERE ${where.join(' AND ')} ORDER BY c.createdAt DESC`;
     return this.query<AgentMessage>('messages', sql, parameters, machine);
+  }
+
+  getBlocker(id: string) {
+    return this.read<Blocker>('blockers', id, id);
+  }
+  async putBlocker(blocker: Blocker) {
+    await (await this.c('blockers')).items.upsert(blocker);
+  }
+  listBlockers(since: string) {
+    return this.query<Blocker>(
+      'blockers',
+      "SELECT * FROM c WHERE c.status = 'open' OR c.resolvedAt >= @since ORDER BY c.createdAt DESC",
+      [{ name: '@since', value: since }],
+    );
   }
 
   getPerfSession(id: string) {

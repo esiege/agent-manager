@@ -10,13 +10,14 @@ import {
   effectiveState,
   isRunning,
   maskSecrets,
+  type Agent,
   type AgentEvent,
   type AgentMessage,
   type InboxResponse,
   type SendMessageResponse,
 } from '@agent-manager-deluxe/shared';
 import { requireKey, requireOwnerWrite } from '../auth';
-import { HttpError, ok, readJson, type Handler } from '../http';
+import { HttpError, ok, readJson, type Ctx, type Handler } from '../http';
 
 const MAX_BODY = 32 * 1024;
 const REASON_LENGTH = 300;
@@ -38,7 +39,7 @@ function messageEvent(agentId: string, activity: string, at: string): AgentEvent
   return { id: randomUUID(), agentId, type: 'message', at, receivedAt: at, state: null, activity, link: null, details: null };
 }
 
-function preview(text: string): string {
+export function preview(text: string): string {
   const line = maskSecrets(text).replace(/\s+/g, ' ');
   return line.length > PREVIEW_LENGTH ? `${line.slice(0, PREVIEW_LENGTH - 1)}…` : line;
 }
@@ -52,26 +53,40 @@ export const sendMessage: Handler = async (req, ctx) => {
 
   const agent = await ctx.store.getAgent(agentId);
   if (!agent) throw new HttpError(404, `No agent with id ${agentId}`);
-  if (agent.kind !== 'claude-code' || agent.parentId) {
-    throw new HttpError(409, 'Only Claude Code sessions take messages, not sub-agents or other kinds of agent');
-  }
   const now = ctx.now();
+  const refused = whyNoMessages(agent, now);
+  if (refused) throw new HttpError(409, refused);
+  const message = await queueMessage(ctx, agent, text, owner.login, `Message sent by ${owner.login}: ${preview(text)}`);
+  const res: SendMessageResponse = { message };
+  return ok(res, 201);
+};
+
+/** Why the agent can't take a message now, or null when it can. */
+export function whyNoMessages(agent: Agent, now: Date): string | null {
+  if (agent.kind !== 'claude-code' || agent.parentId) {
+    return 'Only Claude Code sessions take messages, not sub-agents or other kinds of agent';
+  }
   const state = effectiveState(agent, now.getTime());
-  if (!isRunning(state)) throw new HttpError(409, `The session is ${state}, so nothing would deliver the message`);
+  if (!isRunning(state)) return `The session is ${state}, so nothing would deliver the message`;
   // Claude Code would treat agentctl's message as the session's own, so a session that skips
   // permission prompts would act on it unchecked. agentctl refuses these too.
   if (agent.details.permissionMode === 'bypassPermissions') {
-    throw new HttpError(409, "The session skips permission prompts, so it doesn't take messages from Agent Manager");
+    return "The session skips permission prompts, so it doesn't take messages from Agent Manager Deluxe";
   }
+  return null;
+}
 
+/** Queues a message for agentctl on the agent's PC to post into the session. Check whyNoMessages first. */
+export async function queueMessage(ctx: Ctx, agent: Agent, text: string, from: string, activity: string): Promise<AgentMessage> {
+  const now = ctx.now();
   const at = now.toISOString();
   const message: AgentMessage = {
     id: randomUUID(),
-    agentId,
+    agentId: agent.id,
     machine: agent.machine,
     keyName: agent.keyName,
     text,
-    from: owner.login,
+    from,
     createdAt: at,
     expiresAt: new Date(now.getTime() + MESSAGE_TTL_SECONDS * 1000).toISOString(),
     status: 'pending',
@@ -79,10 +94,9 @@ export const sendMessage: Handler = async (req, ctx) => {
     reason: null,
   };
   await ctx.store.putMessage(message);
-  await ctx.store.addEvents([messageEvent(agentId, `Message sent by ${owner.login}: ${preview(text)}`, at)]);
-  const res: SendMessageResponse = { message };
-  return ok(res, 201);
-};
+  await ctx.store.addEvents([messageEvent(agent.id, activity, at)]);
+  return message;
+}
 
 /** POST /api/v1/inbox: agentctl collects the messages waiting for sessions on its machine. */
 export const inbox: Handler = async (req, ctx) => {
