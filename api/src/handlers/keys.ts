@@ -1,4 +1,4 @@
-// Machine keys, managed by the signed-in owner on the Settings tab (U-08).
+// Machine keys, managed by the signed-in owner on the Keys tab (U-08).
 
 import { KEY_SCOPES, type CreateKeyResponse, type KeyScope, type KeysResponse, type MachineKey } from '@agent-manager-delux/shared';
 import { forgetKey, hashSecret, newKeySecret, publicKey, requireOwner, requireOwnerWrite } from '../auth';

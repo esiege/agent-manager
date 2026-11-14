@@ -46,7 +46,7 @@ The links above open the files in this repo, so you can read exactly what an age
 
 Three things make this safe to hand to an agent:
 
-- **The pages are public, and hold no secrets.** Anyone can read them, but they can't do anything without a key. The key is never on a page: you make it on the Settings tab, and the agent reads it from `AGENT_MANAGER_KEY` (or, for a game, from wherever you put it).
+- **The pages are public, and hold no secrets.** Anyone can read them, but they can't do anything without a key. The key is never on a page: you make it on the Keys tab, and the agent reads it from `AGENT_MANAGER_KEY` (or, for a game, from wherever you put it).
 - **The pages include a check to run,** so the agent can prove the setup works before telling you it's done.
 - **The setup and update pages say when to stop and ask you.** For example, Claude Code in auto mode won't let an agent change Claude Code's own settings, so the page tells the agent which commands to hand you instead.
 
@@ -76,7 +76,7 @@ Sessions and their totals are kept for a year. The detailed samples behind the c
 
 ## How keys work
 
-There are two ways in. You sign in with GitHub and can see and change everything. Anything that isn't you (the reporter on a PC, a game, another service) uses a key that you make on the **Settings** tab.
+There are two ways in. You sign in with GitHub and can see and change everything. Anything that isn't you (the reporter on a PC, a game, another service) uses a key that you make on the **Keys** tab.
 
 A key looks like `am_<id>_<secret>` and goes in the `X-Agent-Manager-Key` header of every call. (Not `Authorization`: Static Web Apps replaces that header before it reaches the API.)
 
@@ -89,9 +89,9 @@ What the server does with a key:
 
 - **It's shown once.** The server stores only a SHA-256 hash of the key, so nobody can read it back later, including you. If you lose one, make another.
 - **Each call is checked against the hash,** then against the key's kind. A missing, unknown or revoked key answers 401 with a line saying which.
-- **Revoking** is a button on the Settings tab. It can take up to a minute to reach every server instance, because checked keys are cached for 60 seconds.
+- **Revoking** is a button on the Keys tab. It can take up to a minute to reach every server instance, because checked keys are cached for 60 seconds.
 - **Each key is limited** to 10 calls a second, with bursts up to 20. More than that answers 429.
-- **Settings shows when each key was last used** (to within 5 minutes), so you can spot one that's idle or busier than it should be.
+- **The Keys tab shows when each key was last used** (to within 5 minutes), so you can spot one that's idle or busier than it should be.
 
 Make one key per PC and one per game, named after it. Then you can revoke one without touching the others, and each performance session shows which key sent it.
 
@@ -133,7 +133,7 @@ It creates the resource group `agent-manager` with a Static Web App (Free plan),
 
 Once per PC, and you run it yourself: Claude Code in auto mode won't let an agent change Claude Code's own settings. The full steps are in [Docs/Claude-Code-Setup.md](Docs/Claude-Code-Setup.md). In short:
 
-1. In Agent Manager Delux, open **Settings** and make a machine key named after the PC. Run the PowerShell line it shows, which saves the key as `AGENT_MANAGER_KEY`.
+1. In Agent Manager Delux, open **Keys** and make a machine key named after the PC. Run the PowerShell line it shows, which saves the key as `AGENT_MANAGER_KEY`.
 2. In your own PowerShell window on that PC, download `agentctl` from `<your site>/agentctl.js` into `~/.agent-manager`, then run `node "$HOME\.agent-manager\agentctl.js" install --url <your site>`, then `doctor`.
 
 `install` adds hooks to `~/.claude/settings.json` (backed up first). From then on every session reports in the background:

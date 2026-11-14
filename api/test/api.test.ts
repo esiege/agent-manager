@@ -95,7 +95,7 @@ describe('machine keys', () => {
     });
     const fake = 'am_abcdefghij_' + 'A'.repeat(43);
     expect((await call(report, 'POST', '/api/v1/report', { body, key: fake })).body).toEqual({
-      error: 'Unknown machine key; make one on the Settings tab',
+      error: 'Unknown machine key; make one on the Keys tab',
     });
   });
 
@@ -104,7 +104,7 @@ describe('machine keys', () => {
     const id = key.split('_')[1];
     await call(revokeKey, 'POST', '/api/v1/keys/revoke', { ...asOwner, body: { id } });
     const res = await call(report, 'POST', '/api/v1/report', { key, body: { agentId: 'a', kind: 'other', machine: 'pc' } });
-    expect(res).toEqual({ status: 401, body: { error: 'This key was revoked on 2026-10-10; make a new one on the Settings tab' } });
+    expect(res).toEqual({ status: 401, body: { error: 'This key was revoked on 2026-10-10; make a new one on the Keys tab' } });
   });
 
   it('never returns the hash, and refuses duplicate names', async () => {

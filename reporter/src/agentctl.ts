@@ -455,7 +455,7 @@ async function installCommand(flags: Record<string, string>) {
   const key = flags.key || process.env.AGENT_MANAGER_KEY || userEnvKey() || saved?.key || '';
   const machine = flags.machine || saved?.machine || defaultMachineName();
   if (!/^https?:\/\//.test(url)) throw new UsageError('Usage: agentctl install --url https://<your Agent Manager Delux> [--key <key>] [--machine <name>]');
-  if (!key) throw new UsageError('No machine key: make one on the Settings tab, then set AGENT_MANAGER_KEY or pass --key');
+  if (!key) throw new UsageError('No machine key: make one on the Keys tab, then set AGENT_MANAGER_KEY or pass --key');
   if ('allow-messages' in flags && 'no-messages' in flags) throw new UsageError('Pass --allow-messages or --no-messages, not both');
   const messages = 'allow-messages' in flags ? true : 'no-messages' in flags ? false : saved?.messages === true;
   const config: Config = {

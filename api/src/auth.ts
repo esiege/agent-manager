@@ -119,10 +119,10 @@ export async function requireKey(req: Req, ctx: Ctx, allow: KeyScope = 'all'): P
   }
   const given = Buffer.from(hashSecret(secret), 'hex');
   if (!key || !timingSafeEqual(given, Buffer.from(key.hash, 'hex'))) {
-    throw new HttpError(401, 'Unknown machine key; make one on the Settings tab');
+    throw new HttpError(401, 'Unknown machine key; make one on the Keys tab');
   }
   if (key.revokedAt) {
-    throw new HttpError(401, `This key was revoked on ${key.revokedAt.slice(0, 10)}; make a new one on the Settings tab`);
+    throw new HttpError(401, `This key was revoked on ${key.revokedAt.slice(0, 10)}; make a new one on the Keys tab`);
   }
   if (key.scope === 'perf' && allow !== 'perf') {
     throw new HttpError(403, 'This is a game key: it can only send performance data (/api/v1/perf/session and /api/v1/perf/samples)');

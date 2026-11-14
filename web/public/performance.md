@@ -11,8 +11,8 @@ You are adding performance reporting to a game or app, so its frame rate, frame 
 
 Each game has its own key, which the person makes and saves themselves. Pick where the game will load it from: a build setting, an environment variable, or a file that isn't committed (add it to `.gitignore`). Check whether it's already there, without printing it. If it isn't, stop and give the person these steps, with the address and the place filled in:
 
-1. Open `$MANAGER_URL/settings` and sign in.
-2. Under **New key**, set **For** to **A game (performance data only)**, type the game's name and choose **Create key**.
+1. Open `$MANAGER_URL/keys` and sign in.
+2. Under **Game keys**, type the game's name and choose **Create game key**.
 3. The key is shown once. Copy it and save it in `<the place you picked>` yourself. Don't paste the key into this chat.
 4. Tell me when that's done.
 

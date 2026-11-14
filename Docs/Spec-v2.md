@@ -70,7 +70,7 @@ flowchart LR
 
 ## Reporting API
 
-All writes are `POST` with `Authorization: Bearer <key>` and a JSON body. Keys are made per machine on the Settings tab, can only write, and can be revoked.
+All writes are `POST` with `Authorization: Bearer <key>` and a JSON body. Keys are made per machine on the Keys tab, can only write, and can be revoked.
 
 | ID | Requirement | Priority | Phase |
 | --- | --- | --- | --- |
@@ -124,7 +124,7 @@ A log entry:
 | I-01 | The instructions are one Markdown file served raw at `/instructions.md`. The Instructions tab renders the same file. (A page that only exists after React runs is empty to most agents.) | Must | 1 |
 | I-02 | One section per kind: Claude Code, OpenClaw, and "any other agent or service" with curl, PowerShell and Python examples. Each section ends with the test call from R-04, so the agent can confirm it shows up. | Must | 1 |
 | I-03 | Claude Code setup is one-time per PC. It installs the reporting hooks in `~/.claude/settings.json` and the `agentctl` command (C-08). The hooks start the machine heartbeat in the background when a session starts. After that every session reports on its own, without the agent remembering anything. A short snippet for CLAUDE.md asks agents to post a one-line summary when they start a task. | Must | 1 |
-| I-04 | The page never contains a key. It tells agents to read `AGENT_MANAGER_KEY` from the environment, and tells the owner how to make one on the Settings tab. | Must | 1 |
+| I-04 | The page never contains a key. It tells agents to read `AGENT_MANAGER_KEY` from the environment, and tells the owner how to make one on the Keys tab. | Must | 1 |
 | I-05 | The page has a version number. Reports carry `instructionsVersion`, and the UI flags agents set up from an older version. | Should | 1 |
 | I-06 | Only the owner can change the page, and it is served from the manager's own site. Whoever can edit it can instruct every agent that reads it. | Must | 1 |
 | I-07 | Short and exact: under 300 lines, with every command in a code block. Some fetch tools return a summary instead of the text, so the page opens by telling agents to fetch the raw file when they need exact commands. | Should | 1 |
@@ -180,7 +180,7 @@ React and TypeScript. Tabs across the top, every list sortable and filterable, a
 | U-05 | Export the current filtered view of logs, events or agents as CSV or JSON. | Must | 1 |
 | U-06 | Copy buttons on ids, commands, links, log entries (as JSON), and every code block on the instructions page. | Must | 1 |
 | U-07 | **Instructions** tab: the rendered instructions page, plus a button that copies the onboarding sentence with the manager's URL filled in. | Must | 1 |
-| U-08 | **Settings** tab: make, name and revoke machine keys (each key shown once, with a copy button), and see when each key was last used. | Must | 1 |
+| U-08 | **Keys** tab: make, name and revoke machine keys and game keys, in separate sections (each key shown once, with a copy button), and see when each key was last used. | Must | 1 |
 | U-09 | Lists refresh without a reload, at most 10 s behind. A row that changes state flashes briefly. | Should | 1 |
 | U-10 | Light and dark themes. Filters and sort order live in the URL, so a view can be bookmarked. | Should | 1 |
 | U-11 | Works at phone width. | Could | 2 |
@@ -215,7 +215,7 @@ Phase 1 is done when scenarios 1–5 pass on the owner's PCs with real sessions 
 
 ## Phases
 
-1. **See every Claude Code session.** The reporting API, the instructions page, Claude Code setup on every PC, and the Overview, Agents, Logs, Instructions and Settings tabs with export and copy.
+1. **See every Claude Code session.** The reporting API, the instructions page, Claude Code setup on every PC, and the Overview, Agents, Logs, Instructions, Keys and Settings tabs with export and copy.
 2. **Everything else, and the status.** OpenClaw and Game Master Assistant reporting, the status job, notifications, and the phone-width layout.
 3. **Later.** The local controls from Spec.md (holds, pause, locks) as an add-on on each PC, an approval list for OpenClaw posts, and Claude Code cloud sessions (through hooks committed to the repo, since cloud sessions don't read `~/.claude/settings.json`).
 

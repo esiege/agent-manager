@@ -5,7 +5,7 @@ import { paths } from './paths';
 export interface Config {
   /** The Agent Manager Delux site, such as https://agent-manager.example.net */
   url: string;
-  /** Machine key from the Settings tab. AGENT_MANAGER_KEY overrides it. */
+  /** Machine key from the Keys tab. AGENT_MANAGER_KEY overrides it. */
   key: string;
   /** This PC's name in Agent Manager Delux. */
   machine: string;

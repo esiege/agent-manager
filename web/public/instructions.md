@@ -20,8 +20,8 @@ Each PC or service has its own key, which the person makes and saves themselves.
 
 If there's none, stop and give the person these steps, with the address filled in:
 
-1. Open `$MANAGER_URL/settings` and sign in.
-2. Under **New key**, type a name for this PC (its host name is a good one) and choose **Create key**.
+1. Open `$MANAGER_URL/keys` and sign in.
+2. Under **Machine keys**, type a name for this PC (its host name is a good one) and choose **Create machine key**.
 3. The key is shown once, with a ready-made line for PowerShell and one for bash. Copy the line for this PC and run it in your own terminal. It saves the key as `AGENT_MANAGER_KEY`. Don't paste the key into this chat.
 4. Tell me when that's done.
 
@@ -62,7 +62,7 @@ node "$HOME\.agent-manager\agentctl.js" install --url "<$MANAGER_URL>"
 node "$HOME\.agent-manager\agentctl.js" doctor
 ```
 
-Tell them: the key must already be saved as `AGENT_MANAGER_KEY` (made on the Settings tab); install finds it on its own, so it never goes on the command line; and `doctor` should show `Hooks: installed` and `Connection: OK`. Use the bash commands from step 2 instead if this PC isn't Windows.
+Tell them: the key must already be saved as `AGENT_MANAGER_KEY` (made on the Keys tab); install finds it on its own, so it never goes on the command line; and `doctor` should show `Hooks: installed` and `Connection: OK`. Use the bash commands from step 2 instead if this PC isn't Windows.
 
 What each session reports on its own: its **story** (the ticket in the branch name, such as `AM-123`, with the session's title, or the title alone), its **task** (the in-progress item of its todo list, or the first line of what it last said), and the person's **prompt**. When a request ends with a new commit, it also reports the **finished work**: the commit's subject and link, the prompt, and the agent's final message. It also reports the **tokens** each request and sub-agent used, per model (counts only, read from Claude Code's transcript on the PC), for the Reporting tab. To keep prompts on the PC, add `"prompts": false` to `~/.agent-manager/config.json`.
 
@@ -217,4 +217,4 @@ curl -fsS -X POST "$MANAGER_URL/api/v1/report" \
   -d '{"agentId":"setup-check","kind":"other","machine":"'"$(hostname)"'","test":true}'
 ```
 
-A working setup answers `{"ok":true,"test":true,...}`. A 401 means the key is missing, wrong or revoked: ask the person for a new one from the Settings tab. Then send one real report and tell the person where to see it (the `agentUrl` in the answer).
+A working setup answers `{"ok":true,"test":true,...}`. A 401 means the key is missing, wrong or revoked: ask the person for a new one from the Keys tab. Then send one real report and tell the person where to see it (the `agentUrl` in the answer).

@@ -6,7 +6,7 @@ You run the install yourself. Claude Code in auto mode blocks every agent, inclu
 
 ## Steps, once per PC
 
-1. **Make a key.** On the Settings tab of Agent Manager Delux, make a machine key named after the PC, for example `pc-studio` or `pc-laptop`.
+1. **Make a key.** On the Keys tab of Agent Manager Delux, make a machine key named after the PC, for example `pc-studio` or `pc-laptop`.
 2. **Save the key.** On that PC, run the PowerShell line the tab shows. It saves the key as `AGENT_MANAGER_KEY` for your Windows user. The tab shows the key only once, so do this before closing the window.
 3. **Install.** On that PC, run these in your own PowerShell window (a VS Code terminal works). Replace `<your-agent-manager-delux-url>` with your site's address, which `deploy.ps1` prints at the end:
 
@@ -26,8 +26,8 @@ Needs Node.js 18 or newer (`node --version`).
 
 Each PC gets its own key, for three reasons:
 - **Labelling:** each machine's reports are tagged with its key's name.
-- **Revoking:** you can cut off one PC (a lost laptop, say) on the Settings tab without touching the others.
-- **Checking in:** the Settings tab shows when each key was last used, so you can see which PCs are still reporting.
+- **Revoking:** you can cut off one PC (a lost laptop, say) on the Keys tab without touching the others.
+- **Checking in:** the Keys tab shows when each key was last used, so you can see which PCs are still reporting.
 
 ## Good to know
 
