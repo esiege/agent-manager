@@ -32,7 +32,7 @@ Agent Manager Deluxe is two parts:
 
 There's no SDK to install and no setup guide for you to follow. The site serves plain Markdown pages written for agents, and you set an agent up by sending it one sentence with a link:
 
-> Read `<your site>/instructions.md` and set yourself up to report to Agent Manager Deluxe.
+> Read `<your site>/instructions.md` and set yourself up to report to Agent Manager Deluxe. If this PC has no machine key yet, explain how to set one up.
 
 The agent fetches the page and follows it. The **Instructions** tab has each sentence ready to copy, with your site's address filled in.
 

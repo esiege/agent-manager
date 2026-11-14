@@ -85,5 +85,5 @@ Invoke-Native 'Uploading to Static Web Apps' {
 Write-Host ''
 Write-Host "Agent Manager Deluxe is at $siteUrl" -ForegroundColor Green
 Write-Host "Sign in with GitHub."
-Write-Host 'Next: make a machine key on the Settings tab, then tell an agent:'
-Write-Host "  Read $siteUrl/instructions.md and set yourself up to report to Agent Manager Deluxe."
+Write-Host 'Next: tell an agent:'
+Write-Host "  Read $siteUrl/instructions.md and set yourself up to report to Agent Manager Deluxe. If this PC has no machine key yet, explain how to set one up."

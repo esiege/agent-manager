@@ -8,8 +8,24 @@ You are an AI agent (Claude Code, OpenClaw, or something else) and the person yo
 
 - **`$MANAGER_URL`** below means the address you fetched this page from, without `/instructions.md` (for example `https://agents.example.net`).
 - If a tool gave you a summary of this page, fetch the raw file (`curl -fsSL $MANAGER_URL/instructions.md`) so you have the exact commands.
-- **The machine key is a secret.** It is never on this page. Read it from the `AGENT_MANAGER_KEY` environment variable. Don't print it, log it or write it into files other than the ones these steps name. If it isn't set, stop and ask the person to make a key on the **Settings** tab of Agent Manager Deluxe and save it as `AGENT_MANAGER_KEY`.
+- **The machine key is a secret.** It is never on this page. Read it from the `AGENT_MANAGER_KEY` environment variable. Don't print it, log it or write it into files other than the ones these steps name. If it isn't set, stop and explain how to set one up: see "If there's no machine key" below.
 - Never send file contents, command lines, tool output or anything secret to Agent Manager Deluxe. Send short status lines, the person's prompt, and short reports of finished work only.
+
+## If there's no machine key
+
+Each PC or service has its own key, which the person makes and saves themselves. Check for one without printing it:
+
+- PowerShell: `[bool]($env:AGENT_MANAGER_KEY -or [Environment]::GetEnvironmentVariable('AGENT_MANAGER_KEY', 'User'))`
+- bash or zsh: `[ -n "$AGENT_MANAGER_KEY" ] && echo set || echo missing`
+
+If there's none, stop and give the person these steps, with the address filled in:
+
+1. Open `$MANAGER_URL/settings` and sign in.
+2. Under **New key**, type a name for this PC (its host name is a good one) and choose **Create key**.
+3. The key is shown once, with a ready-made line for PowerShell and one for bash. Copy the line for this PC and run it in your own terminal. It saves the key as `AGENT_MANAGER_KEY`. Don't paste the key into this chat.
+4. Tell me when that's done.
+
+Then carry on. On Windows the install finds the saved key even though your shell started before it was saved. On macOS or Linux your shell won't see it: ask the person to add the line to their shell profile, start a new session and send you the same sentence again.
 
 ## Claude Code
 
