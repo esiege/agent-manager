@@ -1,0 +1,458 @@
+/* The color theme. See Docs/CUSTOMIZATION.md.
+
+   Eight numbers on <html> (set by src/lib/siteTheme.ts, and by index.html before the first
+   paint) drive every themed color. The defaults here are the Gold theme. */
+:root {
+  --hs: 40;
+  --ss: 32;
+  --ha: 38;
+  --sa: 60;
+  --brand-h: 43;
+  --brand-s: 80;
+  --brand2-h: 24;
+  --brand2-s: 55;
+
+  /* The two ramps, as "h s l" triplets: hsl(var(--brand-400)). Fixed lightness steps. */
+  --brand-50: var(--brand-h) calc(var(--brand-s) * 1%) 96%;
+  --brand-100: var(--brand-h) calc(var(--brand-s) * 1%) 91%;
+  --brand-200: var(--brand-h) calc(var(--brand-s) * 1%) 82%;
+  --brand-300: var(--brand-h) calc(var(--brand-s) * 1%) 72%;
+  --brand-400: var(--brand-h) calc(var(--brand-s) * 1%) 61%;
+  --brand-500: var(--brand-h) calc(var(--brand-s) * 1%) 50%;
+  --brand-600: var(--brand-h) calc(var(--brand-s) * 1%) 42%;
+  --brand-700: var(--brand-h) calc(var(--brand-s) * 1%) 35%;
+  --brand-800: var(--brand-h) calc(var(--brand-s) * 1%) 27%;
+  --brand-900: var(--brand-h) calc(var(--brand-s) * 1%) 20%;
+  --brand-950: var(--brand-h) calc(var(--brand-s) * 1%) 12%;
+
+  --brand2-50: var(--brand2-h) calc(var(--brand2-s) * 1%) 96%;
+  --brand2-100: var(--brand2-h) calc(var(--brand2-s) * 1%) 91%;
+  --brand2-200: var(--brand2-h) calc(var(--brand2-s) * 1%) 82%;
+  --brand2-300: var(--brand2-h) calc(var(--brand2-s) * 1%) 72%;
+  --brand2-400: var(--brand2-h) calc(var(--brand2-s) * 1%) 61%;
+  --brand2-500: var(--brand2-h) calc(var(--brand2-s) * 1%) 50%;
+  --brand2-600: var(--brand2-h) calc(var(--brand2-s) * 1%) 42%;
+  --brand2-700: var(--brand2-h) calc(var(--brand2-s) * 1%) 35%;
+  --brand2-800: var(--brand2-h) calc(var(--brand2-s) * 1%) 27%;
+  --brand2-900: var(--brand2-h) calc(var(--brand2-s) * 1%) 20%;
+  --brand2-950: var(--brand2-h) calc(var(--brand2-s) * 1%) 12%;
+
+  /* Mantine's shades (src/theme.ts points its colors here). */
+  --am-brand-0: hsl(var(--brand-50));
+  --am-brand-1: hsl(var(--brand-100));
+  --am-brand-2: hsl(var(--brand-200));
+  --am-brand-3: hsl(var(--brand-300));
+  --am-brand-4: hsl(var(--brand-400));
+  --am-brand-5: hsl(var(--brand-500));
+  --am-brand-6: hsl(var(--brand-600));
+  --am-brand-7: hsl(var(--brand-700));
+  --am-brand-8: hsl(var(--brand-800));
+  --am-brand-9: hsl(var(--brand-900));
+
+  --am-brand2-0: hsl(var(--brand2-50));
+  --am-brand2-1: hsl(var(--brand2-100));
+  --am-brand2-2: hsl(var(--brand2-200));
+  --am-brand2-3: hsl(var(--brand2-300));
+  --am-brand2-4: hsl(var(--brand2-400));
+  --am-brand2-5: hsl(var(--brand2-500));
+  --am-brand2-6: hsl(var(--brand2-600));
+  --am-brand2-7: hsl(var(--brand2-700));
+  --am-brand2-8: hsl(var(--brand2-800));
+  --am-brand2-9: hsl(var(--brand2-900));
+
+  /* Surfaces: Mantine's gray (light mode) and dark (dark mode), tinted with the surface hue.
+     Same lightness as Mantine's own, so every component keeps its contrast. */
+  --am-gray-0: hsl(var(--hs) calc(var(--ss) * 1%) 96%);
+  --am-gray-1: hsl(var(--hs) calc(var(--ss) * 1%) 93.5%);
+  --am-gray-2: hsl(var(--hs) calc(var(--ss) * 1%) 91%);
+  --am-gray-3: hsl(var(--hs) calc(var(--ss) * 1%) 87.5%);
+  --am-gray-4: hsl(var(--hs) calc(var(--ss) * 0.9%) 82%);
+  --am-gray-5: hsl(var(--hs) calc(var(--ss) * 0.6%) 70%);
+  --am-gray-6: hsl(var(--hs) calc(var(--ss) * 0.5%) 52%);
+  --am-gray-7: hsl(var(--hs) calc(var(--ss) * 0.5%) 31%);
+  --am-gray-8: hsl(var(--hs) calc(var(--ss) * 0.5%) 23%);
+  --am-gray-9: hsl(var(--hs) calc(var(--ss) * 0.5%) 15%);
+
+  --am-dark-0: hsl(var(--hs) calc(var(--ss) * 0.4%) 80%);
+  --am-dark-1: hsl(var(--hs) calc(var(--ss) * 0.4%) 72%);
+  --am-dark-2: hsl(var(--hs) calc(var(--ss) * 0.4%) 55%);
+  --am-dark-3: hsl(var(--hs) calc(var(--ss) * 0.4%) 42%);
+  --am-dark-4: hsl(var(--hs) calc(var(--ss) * 0.7%) 27%);
+  --am-dark-5: hsl(var(--hs) calc(var(--ss) * 0.7%) 23%);
+  --am-dark-6: hsl(var(--hs) calc(var(--ss) * 0.7%) 18%);
+  --am-dark-7: hsl(var(--hs) calc(var(--ss) * 0.7%) 14%);
+  --am-dark-8: hsl(var(--hs) calc(var(--ss) * 0.7%) 11.5%);
+  --am-dark-9: hsl(var(--hs) calc(var(--ss) * 0.7%) 8%);
+}
+
+/* The page itself is tinted too, where Mantine has plain white; links take the accent. */
+html:root[data-mantine-color-scheme='light'] {
+  --mantine-color-body: hsl(var(--hs) calc(var(--ss) * 1%) 98%);
+  --mantine-color-anchor: hsl(var(--ha) calc(var(--sa) * 1%) 34%);
+}
+
+html:root[data-mantine-color-scheme='dark'] {
+  --mantine-color-anchor: hsl(var(--ha) calc(var(--sa) * 1%) 68%);
+}
+
+::selection {
+  background-color: hsl(var(--ha) calc(var(--sa) * 1%) 50% / 0.3);
+}
+
+/* ---- Header tone ----
+   The header is dark by default whatever the page's mode, or light. It re-points the Mantine
+   colors its contents use, so they need no styles of their own. */
+.am-header {
+  color: var(--mantine-color-text);
+}
+
+.am-header[data-tone='dark'] {
+  --mantine-color-body: hsl(var(--hs) calc(var(--ss) * 0.7%) 10%);
+  --mantine-color-text: var(--am-dark-0);
+  --mantine-color-dimmed: var(--am-dark-2);
+  --mantine-color-default: var(--am-dark-6);
+  --mantine-color-default-hover: var(--am-dark-5);
+  --mantine-color-default-color: var(--mantine-color-white);
+  --mantine-color-default-border: var(--am-dark-4);
+  --mantine-primary-color-filled: hsl(var(--brand-500));
+  --am-header-accent: hsl(var(--brand-400));
+  --am-header-accent2: hsl(var(--brand2-400));
+}
+
+.am-header[data-tone='light'] {
+  --mantine-color-body: hsl(var(--hs) calc(var(--ss) * 1%) 99.5%);
+  --mantine-color-text: var(--mantine-color-black);
+  --mantine-color-dimmed: var(--am-gray-6);
+  --mantine-color-default: var(--mantine-color-white);
+  --mantine-color-default-hover: var(--am-gray-0);
+  --mantine-color-default-color: var(--mantine-color-black);
+  --mantine-color-default-border: var(--am-gray-4);
+  --mantine-primary-color-filled: hsl(var(--brand-500));
+  --am-header-accent: hsl(var(--brand-600));
+  --am-header-accent2: hsl(var(--brand2-600));
+}
+
+/* ---- The light / dark switch ---- */
+.am-switch {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+}
+
+.am-switch-end {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--mantine-color-dimmed);
+  cursor: pointer;
+}
+
+.am-switch-end[aria-pressed='true'] {
+  color: var(--am-header-accent);
+}
+
+@media (hover: hover) {
+  .am-switch-end:hover {
+    background-color: var(--mantine-color-default-hover);
+  }
+}
+
+.am-switch-rail {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 24px;
+}
+
+.am-switch-track {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background-color: var(--mantine-color-default-border);
+  cursor: pointer;
+}
+
+.am-switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1.5px rgb(255 255 255 / 0.9),
+    0 1px 3px rgb(0 0 0 / 0.45);
+  cursor: pointer;
+  transition: transform 180ms ease;
+}
+
+/* A little more to press than to see. */
+.am-switch-knob::after {
+  content: '';
+  position: absolute;
+  inset: -8px -3px;
+}
+
+.am-switch[data-mode='dark'] .am-switch-knob {
+  transform: translateX(20px);
+}
+
+.am-switch button:focus-visible {
+  outline: 2px solid var(--am-header-accent);
+  outline-offset: 2px;
+}
+
+/* ---- The color wheel ---- */
+@keyframes am-wheel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@keyframes am-wheel-out {
+  to {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+}
+
+@keyframes am-editor-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes am-swatch-in {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+}
+
+.am-wheel {
+  position: fixed;
+  z-index: 290;
+  width: 212px;
+  height: 212px;
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: 50%;
+  background-color: var(--mantine-color-body);
+  box-shadow: var(--mantine-shadow-xl);
+  transform-origin: 50% 0;
+  animation: am-wheel-in 180ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+/* Gives way to the color editor. */
+.am-wheel[data-out] {
+  animation: am-wheel-out 160ms ease-in forwards;
+  pointer-events: none;
+}
+
+/* A corner poking out of the rim, aimed at the knob. */
+.am-wheel-pointer {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px;
+  border-top: 1px solid var(--mantine-color-default-border);
+  border-left: 1px solid var(--mantine-color-default-border);
+  border-top-left-radius: 2px;
+  background-color: var(--mantine-color-body);
+}
+
+.am-wheel-swatch {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  margin: -20px;
+  padding: 0;
+  border: 2px solid var(--mantine-color-body);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+  cursor: pointer;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+  transition: transform 120ms ease;
+  animation: am-swatch-in 220ms cubic-bezier(0.2, 0.9, 0.3, 1.4) backwards;
+}
+
+.am-wheel-swatch[data-active] {
+  box-shadow:
+    0 0 0 2px var(--mantine-color-text),
+    0 1px 3px rgb(0 0 0 / 0.35);
+}
+
+@media (hover: hover) {
+  .am-wheel-swatch:hover {
+    transform: scale(1.15);
+  }
+}
+
+.am-wheel-swatch:focus-visible,
+.am-wheel-window:focus-visible,
+.am-editor-cell:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 3px;
+}
+
+/* The miniature app window: its top bar is the header. */
+.am-wheel-window {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  width: 46px;
+  height: 38px;
+  margin: -19px -23px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: 6px;
+  background-color: var(--mantine-color-default);
+  color: var(--mantine-color-dimmed);
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+
+@media (hover: hover) {
+  .am-wheel-window:hover {
+    transform: scale(1.08);
+  }
+}
+
+.am-wheel-window-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 3px;
+  height: 12px;
+  padding-inline: 5px;
+  transition: background-color 150ms ease;
+}
+
+.am-wheel-window[data-tone='dark'] .am-wheel-window-bar {
+  background-color: hsl(var(--hs) calc(var(--ss) * 0.7%) 10%);
+}
+
+.am-wheel-window[data-tone='light'] .am-wheel-window-bar {
+  border-bottom: 1px solid var(--am-gray-4);
+  background-color: hsl(var(--hs) calc(var(--ss) * 1%) 99.5%);
+}
+
+.am-wheel-window-bar i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.am-wheel-window-body {
+  display: grid;
+  flex: 1;
+  place-items: center;
+}
+
+/* ---- The color editor ---- */
+.am-editor {
+  position: fixed;
+  z-index: 290;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 268px;
+  padding: 12px;
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: 12px;
+  background-color: var(--mantine-color-body);
+  box-shadow: var(--mantine-shadow-xl);
+  /* Slides in without scaling: the tabs measure themselves as it appears. */
+  animation: am-editor-in 180ms ease-out 80ms backwards;
+}
+
+.am-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 600;
+}
+
+.am-editor-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.am-editor-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.am-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+
+.am-editor-cell {
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .am-editor-cell:hover {
+    transform: scale(1.12);
+  }
+}
+
+.am-editor-cell[data-active] {
+  outline: 2px solid var(--mantine-color-text);
+  outline-offset: 1px;
+}
+
+.am-editor-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.am-editor-preview {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .am-wheel,
+  .am-wheel-swatch,
+  .am-editor {
+    animation-duration: 1ms;
+    animation-delay: 0ms !important;
+  }
+
+  .am-switch-knob,
+  .am-wheel-swatch,
+  .am-wheel-window {
+    transition: none;
+  }
+}

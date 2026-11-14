@@ -7,6 +7,25 @@
     <meta name="description" content="Agent Manager Delux: every agent you run, in one place." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Agent Manager Delux</title>
+    <script>
+      // Light / dark and the saved color theme, applied before the first paint. The numbers are
+      // the ones src/lib/siteTheme.ts last saved; with none saved, styles.css's Gold shows.
+      (function () {
+        try {
+          var root = document.documentElement;
+          var mode = localStorage.getItem('mantine-color-scheme-value');
+          if (mode !== 'light' && mode !== 'dark') mode = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          root.setAttribute('data-mantine-color-scheme', mode);
+          var names = ['--hs', '--ss', '--ha', '--sa', '--brand-h', '--brand-s', '--brand2-h', '--brand2-s'];
+          var saved = JSON.parse(localStorage.getItem('am:themeVars') || 'null');
+          if (Array.isArray(saved) && saved.length === names.length) {
+            for (var i = 0; i < names.length; i++) {
+              if (typeof saved[i] === 'number' && isFinite(saved[i])) root.style.setProperty(names[i], String(saved[i]));
+            }
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

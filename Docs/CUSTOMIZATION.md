@@ -4,11 +4,9 @@ How much of the app's look a user can change. It covers the site-wide color
 settings: color themes, light / dark, header tone, and the hidden custom-color
 palette.
 
-> **Status: not built yet.** This was copied from another project on Nov 13,
-> 2026 and cut down to the parts that apply to Agent Manager Delux. It is the
-> target design. The file paths, the `gma:` storage keys and the Tailwind
-> class names are the source project's and will change when this is built here
-> (this app uses Mantine, and its web code is under `web/`).
+This design came from another project and was built here on Nov 13, 2026, on
+Mantine. Where this app does something differently from the original, the
+section says so.
 
 ---
 
@@ -29,36 +27,43 @@ tones = **24 site looks** before any custom colors.
 ## 2. How color works under the hood
 
 Everything colored in the app comes from a handful of numbers on `<html>`.
-Source: [src/config/siteThemes.ts](../src/config/siteThemes.ts),
-[src/hooks/useSiteTheme.ts](../src/hooks/useSiteTheme.ts),
-[src/index.css](../src/index.css).
+Source: [web/src/lib/siteTheme.ts](../web/src/lib/siteTheme.ts) (the themes
+and the store), [web/src/siteTheme.css](../web/src/siteTheme.css) (the colors
+built from them), [web/src/theme.ts](../web/src/theme.ts) (Mantine's theme).
 
 A color theme is eight numbers, written to `<html>` as CSS custom properties:
 
 | Variable | What it drives |
 |---|---|
-| `--hs` / `--ss` | Surface hue / saturation: the page background, cards, borders, muted text (the shadcn tokens `--background`, `--card`, `--muted`, `--border`…) |
-| `--ha` / `--sa` | Accent hue / saturation: `--primary`, `--ring` |
+| `--hs` / `--ss` | Surface hue / saturation: the page background, cards, borders, muted text (Mantine's `gray` and `dark` colors and `--mantine-color-body`) |
+| `--ha` / `--sa` | Accent hue / saturation: links and the text selection |
 | `--brand-h` / `--brand-s` | The **brand** ramp (the "gold" in the default theme) |
 | `--brand2-h` / `--brand2-s` | The **brand2** ramp (deep bronze in the default theme) |
 
-From those, `index.css` builds two 11-step ramps (`--brand-50` … `--brand-950`,
-`--brand2-50` … `--brand2-950`) with fixed lightness steps, used through
-Tailwind as `text-brand-400`, `bg-brand2-600/20` and so on, and directly as
-`hsl(var(--brand-400))` in SVG fills.
+From those, `siteTheme.css` builds two 11-step ramps (`--brand-50` … `--brand-950`,
+`--brand2-50` … `--brand2-950`) with fixed lightness steps, used directly as
+`hsl(var(--brand-400))` in CSS and SVG fills.
+
+Mantine gets them as two of its own colors, `brand` and `brand2` (so
+`color="brand2"` works on any component), and `brand` is the primary color:
+buttons, focus rings, the logo's "Delux" tag. Mantine's `gray` and `dark` are
+re-pointed at surface-tinted shades with the same lightness as Mantine's own,
+which is how every component follows the theme with no styles of its own.
+
+Status colors are not themed: red for blockers and errors, the yellow flash,
+and the chart series colors stay the same in every theme, because they carry
+meaning.
 
 **The house rule for art:** every drawing, ornament and screen style uses only
 the brand and brand2 ramps plus black and white. A style may desaturate or
 darken a ramp with `calc()`, but it never hardcodes a hex color. That is why
 one theme pick re-tints every screen at once, including all the SVG art.
-Components that need a hex string (a canvas, a library that appends an alpha to
-a hex) use `useThemeRampHex` ([src/hooks/useThemeRampHex.ts](../src/hooks/useThemeRampHex.ts))
-so they follow the theme too.
 
-**No flash on load.** An inline script in [index.html](../index.html) reads the
-saved theme, mode and custom colors and applies them before the first paint.
-It keeps its own copy of the six themes' numbers, so a change to
-`SITE_THEMES` must be made in both places.
+**No flash on load.** An inline script in [web/index.html](../web/index.html)
+applies the saved mode and colors before the first paint. It doesn't keep its
+own copy of the themes: the store saves the eight numbers now in use
+(`am:themeVars`) and the script reads those. With nothing saved, the Gold
+defaults in `siteTheme.css` show.
 
 **Tabs stay in sync.** All of this is an external store; changing the theme in
 one tab updates every other open tab through the `storage` event.
@@ -86,16 +91,17 @@ Unknown or missing saved values fall back to Gold.
 ## 4. Light and dark mode
 
 - The first visit follows the operating system (`prefers-color-scheme`); after
-  that the pick is saved (`theme-preference`).
-- Dark mode is the `.dark` class on `<html>`. Every surface token is written as
-  `hue calc(sat * k%) L%`, so light and dark are both tinted from the same four
-  theme numbers: dark mode in Ruby is a red-black, in Emerald a green-black.
+  that the pick is saved (`mantine-color-scheme-value`, Mantine's own key).
+- Dark mode is Mantine's `data-mantine-color-scheme="dark"` on `<html>`. Every
+  surface color is written as `hue calc(sat * k%) L%`, so light and dark are
+  both tinted from the same theme numbers: dark mode in Ruby is a red-black,
+  in Emerald a green-black.
 - Light / dark and the color theme are independent: any theme in either mode.
 
 ### The switch
 
-In the header, top right on desktop; on phones it sits in the menu sheet under
-the logo, on a "Light / dark" row. Source: [src/components/ThemeToggle.tsx](../src/components/ThemeToggle.tsx).
+In the header, top right, on every screen size (this app has no phone menu
+sheet). Source: [web/src/components/ThemeSwitch.tsx](../web/src/components/ThemeSwitch.tsx).
 
 ```
  ☀  [ ●──── ]  ☾
@@ -118,8 +124,9 @@ hold. Both are one control.
 ### 5.1 Opening the wheel
 
 Click the dot on the light / dark switch (not the track around it). A round
-disc drops down under the header, with a little pointer at its top aimed at the
-dot. On it:
+disc drops down under it, with a little pointer on its rim aimed at the dot
+(near the edge of a phone screen the disc can't sit right under the dot, so
+the pointer leans toward it). On it:
 
 - **Six swatches in a ring**, one per theme, each split diagonally into its
   primary and secondary colors. They pop in one after another (30 ms apart),
@@ -129,7 +136,7 @@ dot. On it:
   header, with two dots in the theme's colors and a sun or moon. This is the
   header tone switch (§5.4).
 
-Clicking anywhere outside the wheel closes it.
+Clicking anywhere outside the wheel closes it, and so does Escape.
 
 ### 5.2 Click or hold
 
@@ -152,6 +159,7 @@ Details that make the hold work on every device:
   menu or a scroll.
 - Each swatch's tooltip says "click to use, hold to customise", the only
   place the hold is mentioned.
+- From the keyboard, Shift + Enter on a swatch opens the editor.
 
 ### 5.3 The color editor
 
@@ -191,7 +199,7 @@ editor's preview and the wheel swatch change until Use theme is pressed.
 add a seventh theme. All six slots can be customized, so a user can keep six
 color pairs of their own. The wheel swatch, the knob on the switch and the
 header window's dots all show the custom colors. Overrides are saved per
-browser (`gma:themeOverrides`, one `{hue, sat}` set per slot), merged over the
+browser (`am:themeOverrides`, a `{hue, sat}` for each customized half of a slot), merged over the
 built-in theme, and applied before paint like the rest.
 
 That's 64 × 64 = 4,096 primary / secondary pairs per slot, in either mode,
@@ -205,11 +213,11 @@ Its own top bar shows the current tone. It's independent of light / dark, so
 there are four combinations: dark page / dark header, dark page / light header,
 light page / dark header, light page / light header.
 
-How it works: a light header gets the `.header-light` class on the header, the
-nav band and the phone menu sheet. Tailwind's `dark:` variant skips anything
-inside `.header-light`, and a custom `hl:` variant styles it instead, so
-header code writes `text-brand-200 hl:text-brand-800`. Saved as
-`gma:headerTone`.
+How it works: the header carries `data-tone="dark"` or `"light"`, and
+`siteTheme.css` re-points the Mantine colors its contents use (text, dimmed
+text, the default button's background and border) for that tone. Buttons,
+links and the logo inside the header need no styles of their own. Saved as
+`am:headerTone`.
 
 ---
 
@@ -217,10 +225,11 @@ header code writes `text-brand-200 hl:text-brand-800`. Saved as
 
 | Setting | Saved in | Key |
 |---|---|---|
-| Color theme | Browser | `gma:colorTheme` |
-| Custom colors | Browser | `gma:themeOverrides` |
-| Light / dark | Browser | `theme-preference` |
-| Header tone | Browser | `gma:headerTone` |
+| Color theme | Browser | `am:colorTheme` |
+| Custom colors | Browser | `am:themeOverrides` |
+| Light / dark | Browser | `mantine-color-scheme-value` |
+| Header tone | Browser | `am:headerTone` |
+| The eight numbers in use, for the no-flash script | Browser | `am:themeVars` |
 
 None of the site-wide settings follow the account yet: a user who switches
 browser or device starts back on Gold, following their OS's light / dark.

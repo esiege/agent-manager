@@ -1,4 +1,4 @@
-// The shell: title, tabs across the top, who is signed in, theme toggle and sign-out.
+// The shell: title, tabs across the top, who is signed in, the theme switch and sign-out.
 
 import {
   ActionIcon,
@@ -11,8 +11,6 @@ import {
   Group,
   Text,
   Tooltip,
-  useComputedColorScheme,
-  useMantineColorScheme,
 } from '@mantine/core';
 import {
   IconAdjustmentsHorizontal,
@@ -23,16 +21,16 @@ import {
   IconLayoutDashboard,
   IconLogout,
   IconLogs,
-  IconMoon,
   IconRadar2,
   IconRobot,
-  IconSun,
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { api, LOGOUT_URL } from '../lib/api';
+import { useSiteTheme } from '../lib/siteTheme';
 import { useMe } from './AuthGate';
 import { Logo } from './Logo';
+import { ThemeSwitch } from './ThemeSwitch';
 
 const TABS = [
   { to: '/', label: 'Overview', icon: IconRadar2 },
@@ -45,19 +43,6 @@ const TABS = [
   { to: '/instructions', label: 'Instructions', icon: IconCompass },
   { to: '/settings', label: 'Settings', icon: IconAdjustmentsHorizontal },
 ] as const;
-
-function ThemeToggle() {
-  const { setColorScheme } = useMantineColorScheme();
-  const computed = useComputedColorScheme('light', { getInitialValueInEffect: true });
-  const next = computed === 'dark' ? 'light' : 'dark';
-  return (
-    <Tooltip label={`Switch to ${next} theme`}>
-      <ActionIcon variant="default" size="lg" onClick={() => setColorScheme(next)} aria-label={`Switch to ${next} theme`}>
-        {computed === 'dark' ? <IconSun size={18} /> : <IconMoon size={18} />}
-      </ActionIcon>
-    </Tooltip>
-  );
-}
 
 const BLOCKER_COUNT_MS = 20_000;
 
@@ -92,10 +77,11 @@ export function AppLayout() {
   const me = useMe();
   const { pathname } = useLocation();
   const openBlockers = useOpenBlockers(pathname);
+  const { headerTone } = useSiteTheme();
 
   return (
     <AppShell header={{ height: 127 }} padding={{ base: 'sm', sm: 'md' }}>
-      <AppShell.Header withBorder={false}>
+      <AppShell.Header withBorder={false} className="am-header" data-tone={headerTone}>
         <Box h="100%" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <Group h={82} px={{ base: 'sm', sm: 'md' }} justify="space-between" wrap="nowrap" gap="sm">
             <Anchor component={Link} to="/" underline="never" c="inherit" aria-label="Agent Manager Delux" style={{ flexShrink: 0 }}>
@@ -105,7 +91,7 @@ export function AppLayout() {
               <Text size="sm" c="dimmed" truncate="end" maw={240} visibleFrom="sm" title={`Signed in as ${me.login}`}>
                 {me.login}
               </Text>
-              <ThemeToggle />
+              <ThemeSwitch />
               <Button
                 component="a"
                 href={LOGOUT_URL}

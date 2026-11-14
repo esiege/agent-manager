@@ -108,7 +108,7 @@
   left: 0;
   height: 2px;
   border-radius: 2px 2px 0 0;
-  background-color: var(--mantine-primary-color-filled);
+  background: linear-gradient(90deg, var(--am-header-accent), var(--am-header-accent2));
 }
 
 /* Rendered instructions. */
