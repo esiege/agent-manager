@@ -26,7 +26,7 @@ const TTL_SECONDS = RETENTION_DAYS * 86_400;
 const REPORTING_TTL_SECONDS = REPORTING_RETENTION_DAYS * 86_400;
 
 /** An event as stored: reporting events carry their own, longer TTL. */
-function eventDoc(e: AgentEvent): AgentEvent & { ttl?: number } {
+export function eventDoc(e: AgentEvent): AgentEvent & { ttl?: number } {
   return isReportingEvent(e) ? { ...e, ttl: REPORTING_TTL_SECONDS } : e;
 }
 

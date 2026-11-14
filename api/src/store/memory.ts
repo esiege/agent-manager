@@ -17,7 +17,7 @@ import {
   type StoredKey,
 } from './types';
 
-interface Snapshot {
+export interface Snapshot {
   keys: StoredKey[];
   agents: Agent[];
   events: AgentEvent[];

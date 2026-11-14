@@ -13,3 +13,14 @@ await build({
   external: ['@azure/functions-core'],
   logLevel: 'info',
 });
+
+// Run by scripts/move-data.ps1 to copy data between a local install and a cloud install. Not deployed.
+await build({
+  entryPoints: ['src/tools/move-data.ts'],
+  outfile: 'dist/move-data.js',
+  bundle: true,
+  platform: 'node',
+  target: 'node20',
+  format: 'cjs',
+  logLevel: 'info',
+});
