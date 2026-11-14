@@ -6,6 +6,7 @@ import { TableSkeleton } from './components/States';
 import { AgentDetailPage } from './pages/AgentDetailPage';
 import { AgentsPage } from './pages/AgentsPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { KeysPage } from './pages/KeysPage';
 import { LogsPage } from './pages/LogsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { OverviewPage } from './pages/OverviewPage';
@@ -69,6 +70,7 @@ export function App() {
               </Suspense>
             }
           />
+          <Route path="keys" element={<KeysPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>

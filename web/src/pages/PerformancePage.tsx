@@ -13,11 +13,11 @@ import {
   type PerfSessionsResponse,
   type PerfStats,
 } from '@agent-manager-delux/shared';
-import { Alert, Anchor, Badge, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
-import { IconInfoCircle } from '@tabler/icons-react';
+import { Alert, Anchor, Badge, Button, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
+import { IconInfoCircle, IconKey } from '@tabler/icons-react';
 import { createColumnHelper, getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table';
 import { useMemo, type ReactNode } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { DataTable } from '../components/DataTable';
 import { PageHeader } from '../components/PageHeader';
 import { EmptyState, LoadError, TableSkeleton } from '../components/States';
@@ -300,7 +300,11 @@ function HowToSend() {
       <Anchor href="/performance.md" target="_blank" rel="noopener" size="sm">
         performance.md
       </Anchor>
-      . Make a game key for them on the Settings tab.
+      . Make a game key for them on the{' '}
+      <Anchor component={Link} to="/keys" size="sm">
+        Keys tab
+      </Anchor>
+      .
     </>
   );
 }
@@ -353,6 +357,9 @@ export function PerformancePage() {
   return (
     <>
       <PageHeader title="Game Performance">
+        <Button component={Link} to="/keys" variant="subtle" size="compact-sm" leftSection={<IconKey size={16} />}>
+          Manage game keys
+        </Button>
         <UpdatedAgo updatedAt={updatedAt} error={error} />
         {filter('Game', 'game', view?.games ?? [], game)}
         {filter('Machine', 'machine', view?.machines ?? [], machine)}

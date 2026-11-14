@@ -18,6 +18,7 @@ import {
   IconCompass,
   IconGauge,
   IconHandStop,
+  IconKey,
   IconLayoutDashboard,
   IconLogout,
   IconLogs,
@@ -41,6 +42,7 @@ const TABS = [
   { to: '/agents', label: 'Agents', icon: IconRobot },
   { to: '/logs', label: 'Logs', icon: IconLogs },
   { to: '/instructions', label: 'Instructions', icon: IconCompass },
+  { to: '/keys', label: 'Keys', icon: IconKey },
   { to: '/settings', label: 'Settings', icon: IconAdjustmentsHorizontal },
 ] as const;
 
