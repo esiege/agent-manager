@@ -17,6 +17,7 @@
 </p>
 
 <p align="center">
+  <a href="#get-started-in-3-steps">Get started</a> ·
   <a href="#what-you-get">Features</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#setting-up-an-agent-send-it-a-link">Set up an agent</a> ·
@@ -24,6 +25,42 @@
   <a href="#deploy-to-azure">Deploy</a> ·
   <a href="#connect-a-pc">Connect a PC</a>
 </p>
+
+## Get started in 3 steps
+
+### 1. Deploy your own copy
+
+Make an empty folder, open Claude Code in it, and paste this:
+
+```text
+Read https://raw.githubusercontent.com/esiege/agent-manager-delux/main/deploy.md and deploy my own Agent Manager Delux from this folder.
+```
+
+Claude Code checks your tools, gets the code and builds it. Then it walks you through signing in to Azure and puts the site on the Free plan, where only your GitHub account can sign in. It stops and asks whenever it needs you. You need an [Azure account](https://azure.microsoft.com/free) (the free one is enough) and about 10 minutes.
+
+<details>
+<summary><b>Other ways to set it up</b></summary>
+<br>
+
+| If you... | Do this |
+| --- | --- |
+| Already cloned this repo | Open Claude Code in the clone and say: *Read deploy.md in this repo and deploy my own Agent Manager Delux.* |
+| Use a different agent | Send it the same sentence. Any agent that can run shell commands can follow [deploy.md](deploy.md). |
+| Would rather do it yourself | Follow [Deploy to Azure](#deploy-to-azure): two commands. |
+| Want to try it on your PC first | See *Run it locally* under [For contributors](#for-contributors). No Azure needed. |
+| Already deployed, and want the latest | Run `git pull`, then `./scripts/deploy.ps1 -SkipInfra`. |
+
+</details>
+
+### 2. Copy this sentence
+
+Once your site is live, copy this sentence. The site's **Instructions** tab has it with your address filled in.
+
+> Read `https://<your-site>/instructions.md` and set yourself up to report to Agent Manager Delux.
+
+### 3. Send it to your agent
+
+Send it to Claude Code on each PC you run agents on. That's it: the agent sets itself up and shows up on the **Agents** tab. The first time on a PC, it tells you how to make the PC's key on the **Keys** tab.
 
 ## Why
 
@@ -134,6 +171,8 @@ Make one key per PC and one per game, named after it. Then you can revoke one wi
 The design is in [Docs/Spec-v2.md](Docs/Spec-v2.md).
 
 ## Deploy to Azure
+
+To have an agent do this for you, see [Get started](#get-started-in-3-steps). To do it yourself:
 
 ```powershell
 az login
