@@ -1,7 +1,7 @@
 // Hiding agents, as the owner. A hidden session stays out of every list for good; a new
 // session in the same project is a new agent, so it shows up as usual.
 
-import { LIMITS, type HideAgentsResponse } from '@agent-manager/shared';
+import { LIMITS, type HideAgentsResponse } from '@agent-manager-deluxe/shared';
 import { requireOwnerWrite } from '../auth';
 import { HttpError, ok, readJson, type Handler } from '../http';
 

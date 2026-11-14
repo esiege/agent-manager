@@ -1,4 +1,4 @@
-import type { AgentState, AgentView } from '@agent-manager/shared';
+import type { AgentState, AgentView } from '@agent-manager-deluxe/shared';
 import { useEffect, useRef, useState } from 'react';
 
 const FLASH_MS = 2000;

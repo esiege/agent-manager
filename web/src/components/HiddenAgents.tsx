@@ -1,6 +1,6 @@
 // Settings: the agents hidden from the Dashboard, with a way to show each one again.
 
-import { RECENT_DAYS, type AgentsResponse } from '@agent-manager/shared';
+import { RECENT_DAYS, type AgentsResponse } from '@agent-manager-deluxe/shared';
 import { Button, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { useState } from 'react';
 import { api } from '../lib/api';

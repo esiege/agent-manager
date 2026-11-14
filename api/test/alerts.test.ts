@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { OWNER_WRITE_HEADER, type AlertsResponse, type AlertSubscription, type CreateKeyResponse } from '@agent-manager/shared';
+import { OWNER_WRITE_HEADER, type AlertsResponse, type AlertSubscription, type CreateKeyResponse } from '@agent-manager-deluxe/shared';
 import { headerText, resetAlertState } from '../src/alerts';
 import { resetAuthState } from '../src/auth';
 import { deleteAlert, listAlerts, saveAlert, sweepAlerts, testAlert } from '../src/handlers/alerts';
@@ -224,7 +224,7 @@ describe('test messages', () => {
     const sub = await subscribe({ enabled: false });
     const res = await call(testAlert, 'POST', '/api/v1/alerts/test', { ...asOwner, body: { id: sub.id } });
     expect(res.status).toBe(200);
-    expect(sent()[0]!.headers).toMatchObject({ Title: 'Agent Manager test', Click: 'https://manager.test/settings' });
+    expect(sent()[0]!.headers).toMatchObject({ Title: 'Agent Manager Deluxe test', Click: 'https://manager.test/settings' });
 
     fetchMock.mockImplementation(async () => {
       throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');

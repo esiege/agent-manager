@@ -3,7 +3,7 @@
 import '@mantine/charts/styles.css';
 
 import { LineChart, type LineChartSeries } from '@mantine/charts';
-import { LIMITS, PERF_SAMPLE_DAYS, perfSessionLive, perfStats, type PerfSessionDetailResponse } from '@agent-manager/shared';
+import { LIMITS, PERF_SAMPLE_DAYS, perfSessionLive, perfStats, type PerfSessionDetailResponse } from '@agent-manager-deluxe/shared';
 import { Alert, Anchor, Badge, Group, SimpleGrid, Stack, Table, Text } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useMemo } from 'react';

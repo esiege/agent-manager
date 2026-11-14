@@ -2,7 +2,7 @@
 
 Oct 11, 2026 · Shelved, then picked up again the same day as an MVP (see "The MVP" below)
 
-The question: can the owner type a prompt on an agent's page in Agent Manager and have it reach that Claude Code session? We looked into it, then shelved it. This page records what we learned so the work doesn't have to be redone. It answers most of [Spec.md](Spec.md) Q-05 and stays outside v1, as [Spec-v2.md](Spec-v2.md) planned ("Talking to agents" is a non-goal).
+The question: can the owner type a prompt on an agent's page in Agent Manager Deluxe and have it reach that Claude Code session? We looked into it, then shelved it. This page records what we learned so the work doesn't have to be redone. It answers most of [Spec.md](Spec.md) Q-05 and stays outside v1, as [Spec-v2.md](Spec-v2.md) planned ("Talking to agents" is a non-goal).
 
 ## Summary
 
@@ -105,7 +105,7 @@ Built on Oct 11, 2026. It follows the design on this page, without signing.
 | --- | --- |
 | API, `api/src/handlers/messages.ts` | **Owner `POST /api/v1/messages`** takes `{agentId, text}` (at most 4,000 characters). It only accepts a running, top-level Claude Code session that isn't in `bypassPermissions` mode. The message expires after 10 minutes.<br>**Machine-key `POST /api/v1/inbox`** returns waiting messages, but only to the key that reports the agent.<br>**Machine-key `POST /api/v1/inbox/ack`** records whether a message was delivered or failed. A repeated ack changes nothing.<br>Sends and acks appear in the agent's timeline. Messages live in the Cosmos `messages` container (partitioned by `/machine`) for one day. |
 | CSRF | Owner POSTs, including keys and alerts, now need the `x-agent-manager-owner: 1` header. The UI sends it on every change. |
-| agentctl | Off unless `agentctl install --allow-messages`; `--no-messages` turns it off again.<br>While it's on, each hook keeps `sessions/<id>/inbox.json` up to date: the socket, the token and the latest permission mode. The file is deleted at SessionEnd, when messages are turned off, and by `uninstall`.<br>The heartbeat polls `/inbox` every 5 s while some open session has an inbox file. It posts each message with the two lines above, adds "(Sent from Agent Manager by <login>)" to the end, and acks. It refuses bypass-permissions sessions itself as well.<br>`agentctl doctor` shows whether messages are on and how many sessions can take one. |
+| agentctl | Off unless `agentctl install --allow-messages`; `--no-messages` turns it off again.<br>While it's on, each hook keeps `sessions/<id>/inbox.json` up to date: the socket, the token and the latest permission mode. The file is deleted at SessionEnd, when messages are turned off, and by `uninstall`.<br>The heartbeat polls `/inbox` every 5 s while some open session has an inbox file. It posts each message with the two lines above, adds "(Sent from Agent Manager Deluxe by <login>)" to the end, and acks. It refuses bypass-permissions sessions itself as well.<br>`agentctl doctor` shows whether messages are on and how many sessions can take one. |
 | UI | The agent page gets a "Message this session" box (Ctrl+Enter sends) with the latest 20 messages and their status: waiting, posted, not delivered or expired. |
 
 Tests: `api/test/api.test.ts` ("messages to agents") and `reporter/test/inbox.test.ts`. The inbox tests include a real round trip over a local named pipe.
@@ -113,7 +113,7 @@ Tests: `api/test/api.test.ts` ("messages to agents") and `reporter/test/inbox.te
 **Tested live on Oct 12, 2026** (Claude Code 2.1.296, VS Code extension, Windows 11). The owner sent "Does this work?" from the agent page to an idle session on the same PC:
 - **Delivered.** The heartbeat posted it about 5 s after it was sent, and acked it as delivered. It started a new turn in the idle session.
 - **Labelled as a peer message, not as the owner's prompt.** Claude Code presented it as "Another Claude session sent a message… not typed by your user". The receiving Claude is told it can't approve anything or change settings because of it. So the own-child token gets the message delivered without a hold, but it doesn't give the message the owner's authority. That's the safer of the two outcomes.
-- The footer "(Sent from Agent Manager by <owner login>)" came through, which tells the session and the person at the window where it came from.
+- The footer "(Sent from Agent Manager Deluxe by <owner login>)" came through, which tells the session and the person at the window where it came from.
 
 Still true: Claude Code doesn't answer on the pipe, so "posted" means the pipe took the lines. A wrong token would be dropped without any error.
 
@@ -129,7 +129,7 @@ Still true: Claude Code doesn't answer on the pipe, so "posted" means the pipe t
 1. Run the delivery test in a terminal Claude Code session, typed with the `!` prefix so the owner runs it:
 
    ```
-   ! node -e "const c=require('net').connect(process.env.CLAUDE_CODE_MESSAGING_SOCKET,()=>{c.write(JSON.stringify({type:'auth',token:process.env.CLAUDE_CODE_MESSAGING_TOKEN})+'\n'+JSON.stringify({type:'user',message:{role:'user',content:'Agent Manager inbox test'}})+'\n');c.end()})"
+   ! node -e "const c=require('net').connect(process.env.CLAUDE_CODE_MESSAGING_SOCKET,()=>{c.write(JSON.stringify({type:'auth',token:process.env.CLAUDE_CODE_MESSAGING_TOKEN})+'\n'+JSON.stringify({type:'user',message:{role:'user',content:'Agent Manager Deluxe inbox test'}})+'\n');c.end()})"
    ```
 
    Check that it arrives, and whether Claude treats it as the owner's prompt or as a message from another session.

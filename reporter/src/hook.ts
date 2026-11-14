@@ -1,7 +1,7 @@
 // Maps one Claude Code hook event to the reports it causes (C-01). Pure, so it can be tested
 // without files or a network; agentctl.ts does the reading, writing and sending.
 
-import { INSTRUCTIONS_VERSION, type ReportInput, type ReportedState } from '@agent-manager/shared';
+import { INSTRUCTIONS_VERSION, type ReportInput, type ReportedState } from '@agent-manager-deluxe/shared';
 import { promptText, storyFrom, taskFromTool } from './context';
 import { describeTool } from './describe';
 import type { CommitInfo } from './git';

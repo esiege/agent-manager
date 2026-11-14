@@ -2,7 +2,7 @@
 // (Docs/Agent-Messaging-Findings.md). A status bar on top says whether that's working, from the
 // latest message; the list below shows what happened to each one.
 
-import { LIMITS, isRunning, type AgentMessage, type AgentView, type MessageStatus } from '@agent-manager/shared';
+import { LIMITS, isRunning, type AgentMessage, type AgentView, type MessageStatus } from '@agent-manager-deluxe/shared';
 import { Alert, Anchor, Button, Collapse, Group, Loader, Paper, Stack, Text, Textarea, ThemeIcon } from '@mantine/core';
 import { IconAlertCircle, IconChevronDown, IconCircleCheck, IconClockX, IconMessageCircle, IconPlugConnectedX, IconSend } from '@tabler/icons-react';
 import { useState, type ReactNode } from 'react';

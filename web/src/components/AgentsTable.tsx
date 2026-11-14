@@ -1,7 +1,7 @@
 // The agents table (U-02): one row per agent, its other sessions and sub-agents nested under it
 // (C-06), sortable on every column. Story, task and prompt say what each agent is on.
 
-import { unfinishedReason, type AgentView } from '@agent-manager/shared';
+import { unfinishedReason, type AgentView } from '@agent-manager-deluxe/shared';
 import { ActionIcon, Anchor, Badge, Box, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconAlertTriangle, IconChevronDown, IconChevronRight, IconCircleCheck } from '@tabler/icons-react';
 import {

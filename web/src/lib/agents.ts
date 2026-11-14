@@ -1,6 +1,6 @@
 // Filtering the agents list, grouping sessions into agents, and nesting sub-agents (U-02, C-06).
 
-import { isRunning, unfinishedReason, type AgentState, type AgentView } from '@agent-manager/shared';
+import { isRunning, unfinishedReason, type AgentState, type AgentView } from '@agent-manager-deluxe/shared';
 import { formatAbsolute } from './time';
 import type { CsvColumn } from './csv';
 import { jsonCell } from './csv';

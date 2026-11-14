@@ -1,6 +1,6 @@
 // U-08: machine keys. Make one per PC, see when each was last used, revoke.
 
-import { LIMITS, type CreateKeyResponse, type KeyScope, type MachineKey } from '@agent-manager/shared';
+import { LIMITS, type CreateKeyResponse, type KeyScope, type MachineKey } from '@agent-manager-deluxe/shared';
 import { Alert, Anchor, Badge, Button, Group, Modal, Paper, Select, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import { IconAlertTriangle, IconKey } from '@tabler/icons-react';
 import { createColumnHelper, getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table';

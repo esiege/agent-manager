@@ -1,13 +1,13 @@
-// Messages the owner sends from an agent's page in Agent Manager (Docs/Agent-Messaging-Findings.md).
+// Messages the owner sends from an agent's page in Agent Manager Deluxe (Docs/Agent-Messaging-Findings.md).
 // Off unless `agentctl install --allow-messages`. When on:
 //   - the hooks keep each session's inbox address and token in sessions/<id>/inbox.json, on this PC only;
-//   - the heartbeat asks Agent Manager for waiting messages every few seconds and posts each one into
+//   - the heartbeat asks Agent Manager Deluxe for waiting messages every few seconds and posts each one into
 //     its session's inbox (a named pipe on Windows), the same two lines Claude Code's own recipe writes.
 // Claude Code treats a post carrying the session's token as coming from the session itself, so a
 // session that skips permission prompts never gets one.
 
 import { connect } from 'node:net';
-import type { AgentMessage, InboxResponse, MessageAckInput } from '@agent-manager/shared';
+import type { AgentMessage, InboxResponse, MessageAckInput } from '@agent-manager-deluxe/shared';
 import type { Config } from './config';
 import { logLine } from './files';
 import { isAlive } from './proc';
@@ -43,7 +43,7 @@ export function syncInbox(config: Config, sessionId: string, event: string, perm
 
 /** The text the session sees: the owner's words, then where they came from. */
 export function formatMessage(m: Pick<AgentMessage, 'text' | 'from'>): string {
-  return `${m.text}\n\n(Sent from Agent Manager by ${m.from})`;
+  return `${m.text}\n\n(Sent from Agent Manager Deluxe by ${m.from})`;
 }
 
 /**
@@ -75,7 +75,7 @@ export function postToSession(inbox: InboxRecord, text: string, timeoutMs = POST
   });
 }
 
-/** Tries one message and says what happened, in the form Agent Manager's ack takes. */
+/** Tries one message and says what happened, in the form Agent Manager Deluxe's ack takes. */
 export async function deliverMessage(
   m: AgentMessage,
   inbox: InboxRecord | undefined,
@@ -93,7 +93,7 @@ export async function deliverMessage(
   return { id: m.id, machine, status: 'delivered' };
 }
 
-// Acks Agent Manager hasn't confirmed yet. The message stays pending there, so the next check
+// Acks Agent Manager Deluxe hasn't confirmed yet. The message stays pending there, so the next check
 // sees it again and resends the ack rather than posting the message twice.
 const unacked = new Map<string, MessageAckInput>();
 

@@ -12,7 +12,7 @@ import {
   type WorkGroup,
   type WorkType,
   type WorkTypeSource,
-} from '@agent-manager/shared';
+} from '@agent-manager-deluxe/shared';
 
 export const NO_PROJECT = '(no project)';
 

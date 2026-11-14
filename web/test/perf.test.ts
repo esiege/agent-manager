@@ -1,4 +1,4 @@
-import { addPerfSamples, emptyPerfTotals, type PerfSample, type PerfSampleInput, type PerfSession } from '@agent-manager/shared';
+import { addPerfSamples, emptyPerfTotals, type PerfSample, type PerfSampleInput, type PerfSession } from '@agent-manager-deluxe/shared';
 import { describe, expect, it } from 'vitest';
 import { byScene, chartPoints, distinct, filterSessions, formatClock, formatDuration, formatMb, formatMs, groupSessions, hardwareLine, metricNames } from '../src/lib/perf';
 

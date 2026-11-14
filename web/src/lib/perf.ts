@@ -10,7 +10,7 @@ import {
   type PerfSample,
   type PerfSession,
   type PerfStats,
-} from '@agent-manager/shared';
+} from '@agent-manager-deluxe/shared';
 
 export const GROUP_BY = ['machine', 'build', 'gpu', 'game'] as const;
 export type GroupBy = (typeof GROUP_BY)[number];

@@ -1,6 +1,6 @@
 // U-07: the instructions agents read, rendered from the same raw file they fetch (I-01).
 
-import { INSTRUCTIONS_UPDATED, INSTRUCTIONS_VERSION } from '@agent-manager/shared';
+import { INSTRUCTIONS_UPDATED, INSTRUCTIONS_VERSION } from '@agent-manager-deluxe/shared';
 import { Anchor, Box, Button, Code, Group, Paper, Stack, Text, Typography } from '@mantine/core';
 import { IconDownload, IconFileText } from '@tabler/icons-react';
 import { createElement, type ReactNode } from 'react';
@@ -22,7 +22,7 @@ async function loadInstructions(signal: AbortSignal): Promise<string> {
     res = await fetch(INSTRUCTIONS_PATH, { signal, headers: { Accept: 'text/markdown, text/plain' } });
   } catch (e) {
     if (signal.aborted) throw e;
-    throw new Error("Can't reach Agent Manager. Check your connection.");
+    throw new Error("Can't reach Agent Manager Deluxe. Check your connection.");
   }
   // A missing file can come back as the app's own HTML page.
   const type = res.headers.get('content-type') ?? '';
@@ -84,10 +84,10 @@ const components: Components = {
 
 export function InstructionsPage() {
   const { data, error, refresh } = usePolling('instructions', loadInstructions, { intervalMs: null });
-  const sentence = `Read ${window.location.origin}${INSTRUCTIONS_PATH} and set yourself up to report to Agent Manager.`;
-  const updateSentence = `Read ${window.location.origin}${UPDATE_PATH} (updated ${INSTRUCTIONS_UPDATED}) and update this PC's Agent Manager reporting if it isn't on the latest.`;
+  const sentence = `Read ${window.location.origin}${INSTRUCTIONS_PATH} and set yourself up to report to Agent Manager Deluxe.`;
+  const updateSentence = `Read ${window.location.origin}${UPDATE_PATH} (updated ${INSTRUCTIONS_UPDATED}) and update this PC's Agent Manager Deluxe reporting if it isn't on the latest.`;
 
-  const performanceSentence = `Read ${window.location.origin}${PERFORMANCE_PATH} and add performance reporting to this game, so its sessions show up in Agent Manager. I'll give you the game key.`;
+  const performanceSentence = `Read ${window.location.origin}${PERFORMANCE_PATH} and add performance reporting to this game, so its sessions show up in Agent Manager Deluxe. I'll give you the game key.`;
 
   return (
     <>

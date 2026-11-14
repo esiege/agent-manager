@@ -2,7 +2,7 @@
 // Best effort: clients must still not log secrets.
 
 const PATTERNS: RegExp[] = [
-  /\bam_[a-z0-9]{8,}_[A-Za-z0-9_-]{16,}\b/g, // Agent Manager machine keys
+  /\bam_[a-z0-9]{8,}_[A-Za-z0-9_-]{16,}\b/g, // Agent Manager Deluxe machine keys
   /\bsk-[A-Za-z0-9_-]{16,}\b/g, // sk-... API keys (Anthropic, OpenAI and others)
   /\bgh[pousr]_[A-Za-z0-9]{20,}\b/g, // GitHub tokens
   /\bxox[abprs]-[A-Za-z0-9-]{10,}\b/g, // Slack tokens

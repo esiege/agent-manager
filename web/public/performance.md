@@ -1,6 +1,6 @@
-# Agent Manager: sending performance data from a game
+# Agent Manager Deluxe: sending performance data from a game
 
-You are adding performance reporting to a game or app, so its frame rate, frame times and memory show up on the **Performance** tab of Agent Manager for every machine it runs on. This page tells you what to send. It is plain HTTPS and JSON, so it works from any engine.
+You are adding performance reporting to a game or app, so its frame rate, frame times and memory show up on the **Performance** tab of Agent Manager Deluxe for every machine it runs on. This page tells you what to send. It is plain HTTPS and JSON, so it works from any engine.
 
 - **`$MANAGER_URL`** below means the address you fetched this page from, without `/performance.md`.
 - **The key** goes in the `X-Agent-Manager-Key` header of every call (not `Authorization`, which the host replaces). Use a **game key**: the person makes one on the **Settings** tab, choosing "A game (performance data only)". A game key can only make the two calls on this page, so it is safe to put in a build that goes to other people's machines. Never put a machine key (the one in `AGENT_MANAGER_KEY`) in a build. Keep the game key out of a public repository all the same: load it from a build setting or a file that isn't committed.
@@ -9,7 +9,7 @@ You are adding performance reporting to a game or app, so its frame rate, frame 
 
 ## How it fits together
 
-A **session** is one run of the game on one machine. The game makes its id, says what it is running on, then sends **samples**: what it measured over each window of a few seconds. Agent Manager adds the samples up per session, and compares sessions by machine, build and GPU.
+A **session** is one run of the game on one machine. The game makes its id, says what it is running on, then sends **samples**: what it measured over each window of a few seconds. Agent Manager Deluxe adds the samples up per session, and compares sessions by machine, build and GPU.
 
 1. At startup, make a session id (a UUID) and call **session**.
 2. While running, measure each frame. Every 5 to 10 seconds, turn the window into one sample. Send the samples you have every 30 to 60 seconds, in one call.
@@ -33,7 +33,7 @@ Call it again with the same `sessionId` to add to what is known or to end the se
 | `details` | no | Any other JSON worth comparing runs by: quality preset, graphics API, GPU driver, window mode, screen percentage. Unknown top-level fields are kept here too. |
 | `ended` | no | `true` when the run is over. |
 
-The answer includes `sessionUrl`, the session's page in Agent Manager.
+The answer includes `sessionUrl`, the session's page in Agent Manager Deluxe.
 
 ```bash
 curl -fsS -X POST "$MANAGER_URL/api/v1/perf/session" \
@@ -49,11 +49,11 @@ Body: `{"sessionId": "...", "samples": [ ... ], "hitchEvents": [ ... ]}` with up
 | --- | --- | --- |
 | `t` | yes | Seconds since the session started, at the end of the window. Use the engine's clock, not the wall clock. It identifies the sample, so each one needs its own. |
 | `seconds` | yes | How long the window was. |
-| `frames` | yes | Frames drawn in it. Agent Manager works out the FPS: `frames / seconds`. |
+| `frames` | yes | Frames drawn in it. Agent Manager Deluxe works out the FPS: `frames / seconds`. |
 | `frameMsP50`, `frameMsP95`, `frameMsP99` | no | Percentiles of the window's frame times, in milliseconds: sort the window's frame times and take the value 50%, 95% and 99% of the way along. |
 | `frameMsMax` | no | The slowest frame in the window. |
 | `hitches` | no | Frames slow enough to notice. You choose the threshold and keep it the same everywhere; 50 ms is common. |
-| `gameMs`, `renderMs`, `gpuMs` | no | Average game-thread, render-thread and GPU time per frame (Unreal's `stat unit` numbers). Agent Manager says which one the frame waited on. An engine that doesn't split the CPU's work by thread sends `cpuMs` and `gpuMs`. |
+| `gameMs`, `renderMs`, `gpuMs` | no | Average game-thread, render-thread and GPU time per frame (Unreal's `stat unit` numbers). Agent Manager Deluxe says which one the frame waited on. An engine that doesn't split the CPU's work by thread sends `cpuMs` and `gpuMs`. |
 | `memoryMb`, `vramMb` | no | Memory and video memory in use at the end of the window. |
 | `drawCalls` | no | Average per frame. |
 | `pingMs` | no | For networked games. |

@@ -59,7 +59,7 @@ export function AppLayout() {
         <Box h="100%" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <Group h={54} px={{ base: 'sm', sm: 'md' }} justify="space-between" wrap="nowrap" gap="sm">
             <Anchor component={Link} to="/" underline="never" c="inherit" fw={700} fz="lg" style={{ whiteSpace: 'nowrap' }}>
-              Agent Manager
+              Agent Manager Deluxe
             </Anchor>
             <Group gap="xs" wrap="nowrap" miw={0}>
               <Text size="sm" c="dimmed" truncate="end" maw={240} visibleFrom="sm" title={`Signed in as ${me.login}`}>

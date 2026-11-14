@@ -1,10 +1,10 @@
-// What a session is on, in three parts (shown side by side in Agent Manager):
+// What a session is on, in three parts (shown side by side in Agent Manager Deluxe):
 //   story:  the ticket and its title when the branch names one, else the session's title
 //   task:   the technical step now: its in-progress todo, else the first line of what it last said
 //   prompt: the person's latest prompt
 // `agentctl story` and `agentctl task` pin a value the agent chose over the worked-out one.
 
-import { LIMITS } from '@agent-manager/shared';
+import { LIMITS } from '@agent-manager-deluxe/shared';
 import { firstLine } from './transcript';
 
 /**

@@ -1,6 +1,6 @@
 // Settings > Alerts: phone alerts, through ntfy, when an agent finishes, needs the owner, fails or is cut off.
 
-import { ALERT_EVENTS, LIMITS, type AlertEvent, type AlertSubscription } from '@agent-manager/shared';
+import { ALERT_EVENTS, LIMITS, type AlertEvent, type AlertSubscription } from '@agent-manager-deluxe/shared';
 import {
   Badge,
   Button,

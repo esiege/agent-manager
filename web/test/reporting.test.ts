@@ -1,4 +1,4 @@
-import type { ReportingAgent, ReportingResponse } from '@agent-manager/shared';
+import type { ReportingAgent, ReportingResponse } from '@agent-manager-deluxe/shared';
 import { describe, expect, it } from 'vitest';
 import { buildReport, formatCost, formatHours } from '../src/lib/reporting';
 

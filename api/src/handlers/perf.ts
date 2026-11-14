@@ -20,7 +20,7 @@ import {
   type PerfSessionDetailResponse,
   type PerfSessionResponse,
   type PerfSessionsResponse,
-} from '@agent-manager/shared';
+} from '@agent-manager-deluxe/shared';
 import { requireKey, requireOwnerOrKey } from '../auth';
 import { HttpError, fail, ok, publicOrigin, query, readJson, type Handler } from '../http';
 

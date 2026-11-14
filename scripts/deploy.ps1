@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Creates or updates Agent Manager in Azure, then builds and uploads the app.
+  Creates or updates Agent Manager Deluxe in Azure, then builds and uploads the app.
 
 .DESCRIPTION
   1. Creates the resource group and deploys infra/main.bicep (Static Web App, Cosmos DB serverless,
@@ -71,7 +71,7 @@ if (Test-Path $staging) { Remove-Item -Recurse -Force $staging }
 New-Item -ItemType Directory -Force (Join-Path $staging 'dist') | Out-Null
 Copy-Item api/host.json $staging
 Copy-Item api/dist/index.js, api/dist/index.js.map (Join-Path $staging 'dist')
-@{ name = 'agent-manager-api'; version = '1.0.0'; private = $true; main = 'dist/index.js' } |
+@{ name = 'agent-manager-deluxe-api'; version = '1.0.0'; private = $true; main = 'dist/index.js' } |
   ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $staging 'package.json')
 
 $token = Invoke-Native 'Reading the deployment token' {
@@ -83,7 +83,7 @@ Invoke-Native 'Uploading to Static Web Apps' {
 } | Out-Host
 
 Write-Host ''
-Write-Host "Agent Manager is at $siteUrl" -ForegroundColor Green
+Write-Host "Agent Manager Deluxe is at $siteUrl" -ForegroundColor Green
 Write-Host "Sign in with GitHub."
 Write-Host 'Next: make a machine key on the Settings tab, then tell an agent:'
-Write-Host "  Read $siteUrl/instructions.md and set yourself up to report to Agent Manager."
+Write-Host "  Read $siteUrl/instructions.md and set yourself up to report to Agent Manager Deluxe."

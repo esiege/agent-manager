@@ -1,6 +1,6 @@
 // The logs table (U-04): sortable, expandable for context, ids that filter when clicked.
 
-import { LOG_LEVELS, type LogEntry } from '@agent-manager/shared';
+import { LOG_LEVELS, type LogEntry } from '@agent-manager-deluxe/shared';
 import { ActionIcon, Anchor, Group, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
 import { IconChevronDown, IconChevronRight, IconExternalLink } from '@tabler/icons-react';
 import {

@@ -1,7 +1,7 @@
 // U-02: every live agent and those stopped in the last week, filterable, sortable, nested.
 // One row per agent: a project's sessions on one machine share a row that opens to show each.
 
-import { AGENT_KINDS, RECENT_DAYS, type AgentView } from '@agent-manager/shared';
+import { AGENT_KINDS, RECENT_DAYS, type AgentView } from '@agent-manager-deluxe/shared';
 import { Anchor, Button, Group, MultiSelect, Switch, Text } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
 import type { ExpandedState } from '@tanstack/react-table';

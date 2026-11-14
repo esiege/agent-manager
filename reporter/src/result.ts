@@ -2,7 +2,7 @@
 // `agentctl done` sends one the agent wrote. When the agent committed during a request but didn't
 // run it, the Stop hook builds one from the commit and the agent's final message.
 
-import { LIMITS, type WorkResultInput } from '@agent-manager/shared';
+import { LIMITS, type WorkResultInput } from '@agent-manager-deluxe/shared';
 import type { CommitInfo } from './git';
 
 /** Headings that introduce acceptance steps in an agent's final message. */

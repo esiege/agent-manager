@@ -18,7 +18,7 @@ import {
   type LogEntry,
   type LogsResponse,
   type ReportResponse,
-} from '@agent-manager/shared';
+} from '@agent-manager-deluxe/shared';
 import { notify, sweepLost } from '../alerts';
 import { requireKey } from '../auth';
 import { fail, ok, publicOrigin, readJson, type Handler } from '../http';

@@ -10,8 +10,8 @@ import type {
   LogsQueryResponse,
   ReportResponse,
   SendMessageResponse,
-} from '@agent-manager/shared';
-import { OWNER_WRITE_HEADER, unfinishedReason } from '@agent-manager/shared';
+} from '@agent-manager-deluxe/shared';
+import { OWNER_WRITE_HEADER, unfinishedReason } from '@agent-manager-deluxe/shared';
 import { resetAuthState } from '../src/auth';
 import { heartbeat, postLogs, report } from '../src/handlers/ingest';
 import { hideAgents } from '../src/handlers/hide';
@@ -70,7 +70,7 @@ beforeEach(() => {
 
 describe('owner sign-in', () => {
   it('needs a sign-in', async () => {
-    expect(await call(me, 'GET', '/api/v1/me')).toEqual({ status: 401, body: { error: 'Sign in to use Agent Manager' } });
+    expect(await call(me, 'GET', '/api/v1/me')).toEqual({ status: 401, body: { error: 'Sign in to use Agent Manager Deluxe' } });
   });
   it('turns away other accounts', async () => {
     const res = await call(me, 'GET', '/api/v1/me', { owner: 'someone@else.com' });
@@ -91,7 +91,7 @@ describe('machine keys', () => {
     const body = { agentId: 'a', kind: 'other', machine: 'pc' };
     expect((await call(report, 'POST', '/api/v1/report', { body })).status).toBe(401);
     expect((await call(report, 'POST', '/api/v1/report', { body, key: 'nope' })).body).toEqual({
-      error: 'That is not an Agent Manager key; keys look like am_<id>_<secret>',
+      error: 'That is not an Agent Manager Deluxe key; keys look like am_<id>_<secret>',
     });
     const fake = 'am_abcdefghij_' + 'A'.repeat(43);
     expect((await call(report, 'POST', '/api/v1/report', { body, key: fake })).body).toEqual({
@@ -449,7 +449,7 @@ describe('messages to agents', () => {
       key,
       body: { agentId: SESSION, kind: 'claude-code', machine: 'pc', details: { permissionMode: 'bypassPermissions' } },
     });
-    expect((await send({})).body).toEqual({ error: "The session skips permission prompts, so it doesn't take messages from Agent Manager" });
+    expect((await send({})).body).toEqual({ error: "The session skips permission prompts, so it doesn't take messages from Agent Manager Deluxe" });
 
     await call(report, 'POST', '/api/v1/report', { key, body: { agentId: SESSION, kind: 'claude-code', machine: 'pc', state: 'stopped' } });
     expect((await send({})).body).toEqual({ error: 'The session is stopped, so nothing would deliver the message' });

@@ -14,7 +14,7 @@ import {
   type AgentMessage,
   type InboxResponse,
   type SendMessageResponse,
-} from '@agent-manager/shared';
+} from '@agent-manager-deluxe/shared';
 import { requireKey, requireOwnerWrite } from '../auth';
 import { HttpError, ok, readJson, type Handler } from '../http';
 
