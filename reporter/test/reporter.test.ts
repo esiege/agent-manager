@@ -389,6 +389,7 @@ describe('token usage', () => {
     const line = assistant('new', { output_tokens: 3 });
     appendFileSync(file, `${line}\n${line.slice(0, 20)}`);
     const second = readUsage(file, first.offset)!;
+    expect(second.model).toBe('claude-opus-5-5');
     expect(second.usage.map((x) => x.output)).toEqual([3]);
     expect(readUsage(file, second.offset)!.usage).toEqual([]);
     expect(readUsage(undefined, 0)).toBeNull();
@@ -414,6 +415,26 @@ describe('token usage', () => {
     const sub = planHook(ev('SubagentStop', { agent_id: 'a1', agent_type: 'Explore', agent_transcript_path: 'sub.jsonl' }), session, [], counting);
     expect(sub.reports[0]!.report).toMatchObject({ agentId: `${session.agentId}/a1`, usage: read.usage });
     expect(calls.at(-1)).toEqual(['sub.jsonl', 0, true]);
+  });
+
+  it('reports the model the latest reply used, once, when it changes', () => {
+    const read = (model: string) => ({ usage: [], offset: 900, model });
+    const on = (model: string): PlanContext => ({ ...ctx, usage: () => read(model), context: { usagePath: 't.jsonl', usageOffset: 100 } });
+    const session = started();
+    const same = planHook(ev('Stop', { transcript_path: 't.jsonl' }), session, [], on('claude-opus-5-5'));
+    expect(same.reports[0]!.report.details).toBeUndefined();
+
+    const switched = planHook(ev('Stop', { transcript_path: 't.jsonl' }), session, [], on('claude-sonnet-5-5'));
+    expect(switched.reports[0]!.report.details).toEqual({ model: 'claude-sonnet-5-5' });
+    expect(switched.sessionChanged).toBe(true);
+    expect(switched.session.details).toMatchObject({ model: 'claude-sonnet-5-5', sessionId: session.sessionId });
+
+    // SessionStart's "[1m]" suffix isn't in the transcript: keep it.
+    const long = planHook(ev('SessionStart', { source: 'startup', model: 'claude-opus-5-5[1m]' }), null, [], ctx).session;
+    expect(planHook(ev('Stop', { transcript_path: 't.jsonl' }), long, [], on('claude-opus-5-5')).reports[0]!.report.details).toBeUndefined();
+
+    const sub = planHook(ev('SubagentStop', { agent_id: 'a1', agent_transcript_path: 'sub.jsonl' }), session, [], on('claude-haiku-5-5'));
+    expect(sub.reports[0]!.report.details).toEqual({ model: 'claude-haiku-5-5' });
   });
 
   it('starts counting afresh when a session starts or resumes', () => {

@@ -127,6 +127,8 @@ const USAGE_MAX_BYTES = 64 * 1024 * 1024;
 export interface UsageRead {
   /** Tokens per model in the lines read. */
   usage: TokenUsage[];
+  /** The model of the last assistant message in the lines read: the one in use now. */
+  model?: string;
   /** Where the next read starts: just past the last whole line. */
   offset: number;
 }
@@ -153,7 +155,8 @@ export function readUsage(file: string | undefined, offset: number | undefined, 
     readSync(fd, buf, 0, buf.length, offset);
     // A line still being written is left for the next read.
     const end = buf.lastIndexOf(0x0a) + 1;
-    return { usage: parseUsage(buf.subarray(0, end).toString('utf8'), subagent), offset: offset + end };
+    const { usage, model } = scanUsage(buf.subarray(0, end).toString('utf8'), subagent);
+    return { usage, offset: offset + end, ...(model ? { model } : {}) };
   } catch {
     return null;
   } finally {
@@ -186,14 +189,21 @@ const count = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v 
  * the sub-agents' own transcripts instead, where every line is a sidechain one (`subagent`).
  */
 export function parseUsage(text: string, subagent = false): TokenUsage[] {
+  return scanUsage(text, subagent).usage;
+}
+
+/** parseUsage, plus the model of the last assistant message: the one the session uses now. */
+export function scanUsage(text: string, subagent = false): { usage: TokenUsage[]; model?: string } {
   const messages = new Map<string, TokenUsage>();
   let unnamed = 0;
+  let model: string | undefined;
   for (const raw of text.split('\n')) {
     if (!raw.includes('"usage"') || !raw.includes('"assistant"')) continue;
     const line = parse(raw) as UsageLine | null;
     const m = line?.message;
     if (!line || line.type !== 'assistant' || (line.isSidechain && !subagent) || !m?.usage || !m.model || m.model.startsWith('<')) continue;
     const u = m.usage;
+    model = m.model;
     const next: TokenUsage = {
       model: m.model,
       input: count(u.input_tokens),
@@ -211,7 +221,7 @@ export function parseUsage(text: string, subagent = false): TokenUsage[] {
     const total = byModel.get(u.model);
     byModel.set(u.model, total ? addUsage(total, u) : { ...u });
   }
-  return [...byModel.values()].filter((u) => u.input + u.output + u.cacheWrite + u.cacheRead > 0);
+  return { usage: [...byModel.values()].filter((u) => u.input + u.output + u.cacheWrite + u.cacheRead > 0), ...(model ? { model } : {}) };
 }
 
 const FIELDS = ['input', 'output', 'cacheWrite', 'cacheWrite1h', 'cacheRead'] as const;

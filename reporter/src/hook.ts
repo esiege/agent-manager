@@ -103,6 +103,14 @@ function surface(entrypoint: string | undefined): string | null {
   return entrypoint;
 }
 
+/**
+ * Whether a transcript's model is the one the session already has. SessionStart can name it with
+ * a suffix the transcript leaves out ("claude-opus-5-5[1m]"), which is worth keeping.
+ */
+function sameModel(known: unknown, latest: string): boolean {
+  return typeof known === 'string' && (known === latest || known.startsWith(`${latest}[`));
+}
+
 export function subagentAgentId(session: SessionRecord, subagentId: string): string {
   return `${session.agentId}/${subagentId}`;
 }
@@ -159,6 +167,7 @@ export function planHook(
   // ---- Story, task and prompt (context.ts) ----
   const main = !input.agent_id;
   let context = ctx.context;
+  let modelChanged = false;
   const what: Pick<ReportInput, 'story' | 'task' | 'prompt' | 'turn' | 'result' | 'workType' | 'usage'> = {};
   if (main && input.transcript_path) {
     // The count starts where the last one ended, in this transcript. A (re)started session starts
@@ -170,6 +179,12 @@ export function planHook(
       if (read) {
         if (read.offset !== context.usageOffset || !sameFile) context = { ...context, usagePath: input.transcript_path, usageOffset: read.offset };
         if (read.usage.length) what.usage = read.usage;
+        // The model can change mid-session (/model): report the one the latest reply used.
+        if (read.model && !sameModel(session.details.model, read.model)) {
+          session = { ...session, details: { ...session.details, model: read.model } };
+          sessionChanged = true;
+          modelChanged = true;
+        }
       }
     }
   }
@@ -216,7 +231,7 @@ export function planHook(
     instructionsVersion: INSTRUCTIONS_VERSION,
     at: now,
     // A session seen for the first time sends everything the manager needs to show it.
-    ...(isNew ? { parentId: null, details: session.details } : {}),
+    ...(isNew ? { parentId: null, details: session.details } : modelChanged ? { details: { model: session.details.model } } : {}),
   });
   const sessionReport = (state: ReportedState, activity: string, coalesce = false): PlannedReport => ({
     report: { ...base(), state, activity, ...what },
@@ -292,8 +307,9 @@ export function planHook(
       if (input.agent_id) {
         plan.subagentStop = input.agent_id;
         const stopped = subReport(input.agent_id, input.agent_type, 'stopped', 'Finished');
-        const usage = ctx.usage(input.agent_transcript_path, 0, true)?.usage;
-        if (usage?.length) stopped.report.usage = usage;
+        const read = ctx.usage(input.agent_transcript_path, 0, true);
+        if (read?.usage.length) stopped.report.usage = read.usage;
+        if (read?.model) stopped.report.details = { model: read.model };
         plan.reports.push(stopped);
       }
       break;
