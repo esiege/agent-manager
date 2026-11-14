@@ -86,4 +86,4 @@ Write-Host ''
 Write-Host "Agent Manager Delux is at $siteUrl" -ForegroundColor Green
 Write-Host "Sign in with GitHub."
 Write-Host 'Next: tell an agent:'
-Write-Host "  Read $siteUrl/instructions.md and set yourself up to report to Agent Manager Delux. If this PC has no machine key yet, explain how to set one up."
+Write-Host "  Read $siteUrl/instructions.md and set yourself up to report to Agent Manager Delux."
