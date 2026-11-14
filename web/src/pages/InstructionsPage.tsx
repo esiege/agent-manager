@@ -1,67 +1,43 @@
 // U-07: the instructions agents read, rendered from the same raw file they fetch (I-01).
 
-import {
-  INSTRUCTIONS_UPDATED,
-  INSTRUCTIONS_VERSION,
-} from "@agent-manager-deluxe/shared";
-import {
-  Anchor,
-  Box,
-  Button,
-  CopyButton,
-  Group,
-  Paper,
-  Text,
-  Title,
-  Tooltip,
-  Typography,
-} from "@mantine/core";
-import {
-  IconCheck,
-  IconCopy,
-  IconDownload,
-  IconFileText,
-} from "@tabler/icons-react";
-import { createElement, useState, type ReactNode } from "react";
-import Markdown, { type Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { CopyField, CopyIcon, CopyTextButton } from "../components/Copy";
-import { PageHeader } from "../components/PageHeader";
-import { LoadError, TableSkeleton } from "../components/States";
-import { usePolling } from "../lib/usePolling";
+import { INSTRUCTIONS_UPDATED, INSTRUCTIONS_VERSION } from '@agent-manager-deluxe/shared';
+import { Anchor, Box, Button, CopyButton, Group, Paper, Text, Title, Tooltip, Typography } from '@mantine/core';
+import { IconCheck, IconCopy, IconDownload, IconFileText } from '@tabler/icons-react';
+import { createElement, useState, type ReactNode } from 'react';
+import Markdown, { type Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { CopyField, CopyIcon, CopyTextButton } from '../components/Copy';
+import { PageHeader } from '../components/PageHeader';
+import { LoadError, TableSkeleton } from '../components/States';
+import { usePolling } from '../lib/usePolling';
 
-const INSTRUCTIONS_PATH = "/instructions.md";
-const AGENTCTL_PATH = "/agentctl.js";
-const UPDATE_PATH = "/update.md";
-const PERFORMANCE_PATH = "/performance.md";
+const INSTRUCTIONS_PATH = '/instructions.md';
+const AGENTCTL_PATH = '/agentctl.js';
+const UPDATE_PATH = '/update.md';
+const PERFORMANCE_PATH = '/performance.md';
 
 async function loadInstructions(signal: AbortSignal): Promise<string> {
   let res: Response;
   try {
-    res = await fetch(INSTRUCTIONS_PATH, {
-      signal,
-      headers: { Accept: "text/markdown, text/plain" },
-    });
+    res = await fetch(INSTRUCTIONS_PATH, { signal, headers: { Accept: 'text/markdown, text/plain' } });
   } catch (e) {
     if (signal.aborted) throw e;
     throw new Error("Can't reach Agent Manager Deluxe. Check your connection.");
   }
   // A missing file can come back as the app's own HTML page.
-  const type = res.headers.get("content-type") ?? "";
-  if (!res.ok || type.includes("text/html")) {
-    throw new Error(
-      `${INSTRUCTIONS_PATH} isn't available (${res.ok ? "got a web page instead" : res.status}).`,
-    );
+  const type = res.headers.get('content-type') ?? '';
+  if (!res.ok || type.includes('text/html')) {
+    throw new Error(`${INSTRUCTIONS_PATH} isn't available (${res.ok ? 'got a web page instead' : res.status}).`);
   }
   return res.text();
 }
 
 /** The plain text of a Markdown syntax-tree node. */
 function textOf(node: unknown): string {
-  if (!node || typeof node !== "object") return "";
+  if (!node || typeof node !== 'object') return '';
   const n = node as { type?: unknown; value?: unknown; children?: unknown };
-  if (n.type === "text" && typeof n.value === "string") return n.value;
-  return Array.isArray(n.children) ? n.children.map(textOf).join("") : "";
+  if (n.type === 'text' && typeof n.value === 'string') return n.value;
+  return Array.isArray(n.children) ? n.children.map(textOf).join('') : '';
 }
 
 /** Heading anchors in the usual Markdown style, so links like #claude-code work. */
@@ -69,18 +45,12 @@ function slug(text: string): string {
   return text
     .trim()
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s-]/gu, "")
-    .replace(/\s/g, "-");
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
+    .replace(/\s/g, '-');
 }
 
-function heading(tag: "h1" | "h2" | "h3" | "h4") {
-  return function Heading({
-    node,
-    children,
-  }: {
-    node?: unknown;
-    children?: ReactNode;
-  }) {
+function heading(tag: 'h1' | 'h2' | 'h3' | 'h4') {
+  return function Heading({ node, children }: { node?: unknown; children?: ReactNode }) {
     return createElement(tag, { id: slug(textOf(node)) }, children);
   };
 }
@@ -88,7 +58,7 @@ function heading(tag: "h1" | "h2" | "h3" | "h4") {
 const components: Components = {
   // Every code block gets a copy button (U-06).
   pre({ node, children }) {
-    const text = textOf(node).replace(/\n$/, "");
+    const text = textOf(node).replace(/\n$/, '');
     return (
       <div className="am-code-block">
         <pre>{children}</pre>
@@ -99,23 +69,17 @@ const components: Components = {
     );
   },
   a({ href, children }) {
-    const external =
-      !!href &&
-      /^https?:\/\//i.test(href) &&
-      !href.startsWith(window.location.origin);
+    const external = !!href && /^https?:\/\//i.test(href) && !href.startsWith(window.location.origin);
     return (
-      <Anchor
-        href={href}
-        {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-      >
+      <Anchor href={href} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
         {children}
       </Anchor>
     );
   },
-  h1: heading("h1"),
-  h2: heading("h2"),
-  h3: heading("h3"),
-  h4: heading("h4"),
+  h1: heading('h1'),
+  h2: heading('h2'),
+  h3: heading('h3'),
+  h4: heading('h4'),
 };
 
 /** The sentence with its link picked out. */
@@ -142,14 +106,7 @@ interface SideItemProps {
 }
 
 /** A less common sentence, kept small beside the main steps. */
-function SideItem({
-  title,
-  description,
-  sentence,
-  copyLabel,
-  meta,
-  link,
-}: SideItemProps) {
+function SideItem({ title, description, sentence, copyLabel, meta, link }: SideItemProps) {
   return (
     <div className="am-side-item">
       <Text size="sm" fw={600}>
@@ -180,15 +137,9 @@ function SideItem({
 }
 
 export function InstructionsPage() {
-  const { data, error, refresh } = usePolling(
-    "instructions",
-    loadInstructions,
-    { intervalMs: null },
-  );
+  const { data, error, refresh } = usePolling('instructions', loadInstructions, { intervalMs: null });
   // Hidden until asked for. A link to a heading in the instructions opens them.
-  const [showFull, setShowFull] = useState(
-    () => window.location.hash.length > 1,
-  );
+  const [showFull, setShowFull] = useState(() => window.location.hash.length > 1);
   const instructionsUrl = `${window.location.origin}${INSTRUCTIONS_PATH}`;
   const sentence = `Read ${instructionsUrl} and set yourself up to report to Agent Manager Deluxe. If this PC has no machine key yet, explain how to set one up.`;
   const updateSentence = `Read ${window.location.origin}${UPDATE_PATH} (updated ${INSTRUCTIONS_UPDATED}) and update this PC's Agent Manager Deluxe reporting if it isn't on the latest.`;
@@ -206,9 +157,7 @@ export function InstructionsPage() {
           aria-controls="full-instructions"
           onClick={() => setShowFull((shown) => !shown)}
         >
-          {showFull
-            ? "Hide Full Agent Instructions"
-            : "Show Full Agent Instructions"}
+          {showFull ? 'Hide Full Agent Instructions' : 'Show Full Agent Instructions'}
         </Anchor>
       </PageHeader>
 
@@ -221,22 +170,15 @@ export function InstructionsPage() {
               {({ copied, copy }) => (
                 <>
                   {/* Clicking the sentence copies it too; the button is the keyboard way. */}
-                  <div
-                    className="am-sentence"
-                    data-copied={copied || undefined}
-                    onClick={copy}
-                    title="Click to copy"
-                  >
+                  <div className="am-sentence" data-copied={copied || undefined} onClick={copy} title="Click to copy">
                     {highlightLinks(sentence)}
                   </div>
                   <Button
                     onClick={copy}
-                    color={copied ? "teal" : undefined}
-                    leftSection={
-                      copied ? <IconCheck size={16} /> : <IconCopy size={16} />
-                    }
+                    color={copied ? 'teal' : undefined}
+                    leftSection={copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
                   >
-                    {copied ? "Copied" : "Copy sentence"}
+                    {copied ? 'Copied' : 'Copy sentence'}
                   </Button>
                 </>
               )}
@@ -245,9 +187,7 @@ export function InstructionsPage() {
           <li className="am-step">
             <div className="am-step-label">Step 2</div>
             <h2 className="am-step-title">Send it to your agent</h2>
-            <p className="am-step-desc">
-              That's it. The agent sets itself up and appears on the Agents tab.
-            </p>
+            <p className="am-step-desc">That's it. The agent sets itself up and appears on the Agents tab.</p>
           </li>
         </ol>
 
@@ -258,14 +198,14 @@ export function InstructionsPage() {
             sentence={updateSentence}
             copyLabel="Copy update sentence"
             meta={`Latest: version ${INSTRUCTIONS_VERSION}, ${INSTRUCTIONS_UPDATED}`}
-            link={{ href: UPDATE_PATH, label: "Open update page" }}
+            link={{ href: UPDATE_PATH, label: 'Open update page' }}
           />
           <SideItem
             title="Building a game?"
             description="Make a game key on the Settings tab, then send the performance sentence to the agent building the game."
             sentence={performanceSentence}
             copyLabel="Copy performance sentence"
-            link={{ href: PERFORMANCE_PATH, label: "Open performance page" }}
+            link={{ href: PERFORMANCE_PATH, label: 'Open performance page' }}
           />
         </aside>
       </div>
@@ -304,19 +244,13 @@ export function InstructionsPage() {
               </Group>
             </Group>
             <Text size="sm" c="dimmed" mt={4} mb="xs">
-              For agent instructions, give your agent this link, or copy all of
-              the text below.
+              For agent instructions, give your agent this link, or copy all of the text below.
             </Text>
             <Group gap="sm" wrap="wrap" align="center">
-              <Box maw={520} miw={0} style={{ flex: "1 1 260px" }}>
+              <Box maw={520} miw={0} style={{ flex: '1 1 260px' }}>
                 <CopyField value={instructionsUrl} label="Copy link" />
               </Box>
-              <CopyTextButton
-                value={data ?? ""}
-                disabled={data === undefined}
-                size="xs"
-                variant="default"
-              >
+              <CopyTextButton value={data ?? ''} disabled={data === undefined} size="xs" variant="default">
                 Copy all text
               </CopyTextButton>
             </Group>
