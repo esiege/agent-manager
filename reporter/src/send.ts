@@ -20,14 +20,29 @@ export function get<T>(config: Config, path: string, timeoutMs = 15_000): Promis
   return call<T>(config, 'GET', path, undefined, timeoutMs);
 }
 
+/** POSTs a file (its bytes, with its Content-Type) to the Agent Manager Deluxe API. */
+export function postFile<T>(config: Config, path: string, bytes: Buffer, contentType: string, timeoutMs = 120_000): Promise<T> {
+  return call<T>(config, 'POST', path, { bytes, contentType }, timeoutMs);
+}
+
+interface FileBody {
+  bytes: Buffer;
+  contentType: string;
+}
+
+function isFile(body: unknown): body is FileBody {
+  return typeof body === 'object' && body !== null && Buffer.isBuffer((body as FileBody).bytes);
+}
+
 async function call<T>(config: Config, method: 'GET' | 'POST', path: string, body: unknown, timeoutMs: number): Promise<T> {
   let res: Response;
+  const file = isFile(body) ? body : null;
   try {
     res = await fetch(`${config.url}/api/v1${path}`, {
       method,
       // Not Authorization: Static Web Apps replaces that header before the API sees it.
-      headers: { 'content-type': 'application/json', 'x-agent-manager-key': config.key },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: { 'content-type': file ? file.contentType : 'application/json', 'x-agent-manager-key': config.key },
+      body: file ? new Uint8Array(file.bytes) : body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (e) {

@@ -10,13 +10,17 @@ import {
   REPORTED_STATES,
   WORK_TYPES,
   perfStats,
+  type BlockerDetailResponse,
+  type BlockerMedia,
+  type BlockerResponse,
   type PerfSessionDetailResponse,
   type PerfSessionsResponse,
   type ReportInput,
   type ReportResponse,
   type ReportedState,
   type WorkType,
-} from '@agent-manager/shared';
+} from '@agent-manager-deluxe/shared';
+import { BlockerFileError, captureScreen, describeBlocker, readBlockerFile, type BlockerFile } from './blocker';
 import { ConfigError, defaultMachineName, loadConfig, type Config } from './config';
 import { ensureDaemon, runDaemon } from './daemon';
 import { logLine, readJsonFile, writeJsonFile } from './files';
@@ -25,7 +29,7 @@ import { planHook, type HookInput, type PlannedReport } from './hook';
 import { removeAllInboxes, syncInbox } from './inbox';
 import { paths } from './paths';
 import { ancestors, isAlive } from './proc';
-import { get, post, SendError } from './send';
+import { get, post, postFile, SendError } from './send';
 import {
   addSubagent,
   listSessions,
@@ -65,6 +69,15 @@ const HELP = `agentctl: reports the Claude Code sessions on this PC to Agent Man
       Reports finished work: the commit (its subject is the title, linked to GitHub), the prompt,
       the summary (Markdown; "-" reads it from stdin) and acceptance checks. Commit first: it
       refuses while there are uncommitted changes, unless --uncommitted.
+  agentctl blocker "<what's in the way>" [--details "<more>"] [--screenshot <file>]... [--video <file>]
+                  [--screen] [--wait <seconds>]
+      Reports something you can't get past without the person (a login, a key, a decision, a
+      broken machine). It shows on the Blockers tab, where they answer it. --details is Markdown
+      ("-" reads it from stdin): what you tried and exactly what you need. --screenshot and --video
+      attach files (PNG, JPEG, WebP, GIF up to 8 MB; MP4, WebM up to 25 MB); --screen captures the
+      whole screen (macOS and Linux). --wait waits up to that many seconds for the answer and prints it.
+  agentctl blocker <id> [--wait <seconds>]
+      Prints whether the blocker is answered, and the answer; --wait waits for it first.
   agentctl perf [--game <name>] [--days <n>] [--limit <n>] [--json]
       Lists the performance sessions games have sent, newest first, one line a session.
   agentctl perf <sessionId>   Prints one session as JSON: its totals, worst hitches and samples.
@@ -73,17 +86,17 @@ const HELP = `agentctl: reports the Claude Code sessions on this PC to Agent Man
   agentctl hook               (used by the hooks) Reads one hook event from stdin.
   agentctl daemon             (started by the hooks) Runs the heartbeat.
 
-Exit codes: 0 done, 1 bad usage, 2 not set up, 3 session not found, 4 Agent Manager refused or
-unreachable, 5 uncommitted changes (done).`;
+Exit codes: 0 done, 1 bad usage, 2 not set up, 3 session not found, 4 Agent Manager Deluxe refused or
+unreachable, 5 uncommitted changes (done), 6 the blocker is still open after --wait.`;
 
 class UsageError extends Error {}
 class NotFoundError extends Error {}
 
 /** Flags that take no value. */
-const SWITCHES = new Set(['clear', 'uncommitted', 'allow-messages', 'no-messages', 'json']);
+const SWITCHES = new Set(['clear', 'uncommitted', 'allow-messages', 'no-messages', 'json', 'screen']);
 
 /** Flags that can be given more than once; every value is kept in `lists`. */
-const REPEATED = new Set(['check']);
+const REPEATED = new Set(['check', 'screenshot', 'video']);
 
 function parseArgs(argv: string[]): { positional: string[]; flags: Record<string, string>; lists: Record<string, string[]> } {
   const positional: string[] = [];
@@ -321,6 +334,83 @@ async function doneCommand(positional: string[], flags: Record<string, string>, 
   if (!commit && !('uncommitted' in flags)) console.log('No commit was made during this request, so the report has no commit link.');
 }
 
+// ---- blocker ----
+
+class StillOpenError extends Error {}
+
+const BLOCKER_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const WAIT_POLL_MS = 5000;
+
+function waitSeconds(flags: Record<string, string>): number | null {
+  if (!('wait' in flags)) return null;
+  const n = Number(flags.wait);
+  if (!Number.isFinite(n) || n < 0 || n > 86_400) throw new UsageError('--wait takes a number of seconds, such as --wait 540');
+  return n;
+}
+
+/** Prints the blocker, waiting up to `seconds` for an answer first. Throws StillOpenError if there's none. */
+async function showBlocker(config: Config, id: string, seconds: number | null) {
+  const deadline = Date.now() + (seconds ?? 0) * 1000;
+  for (;;) {
+    const { blocker } = await get<BlockerDetailResponse>(config, `/blocker?${new URLSearchParams({ id })}`);
+    if (blocker.status !== 'open') {
+      console.log(describeBlocker(blocker));
+      return;
+    }
+    if (Date.now() + WAIT_POLL_MS > deadline) {
+      console.log(describeBlocker(blocker));
+      if (seconds !== null) throw new StillOpenError(`Still open after ${seconds} s. Check again with: agentctl blocker ${id} --wait <seconds>`);
+      return;
+    }
+    await new Promise((r) => setTimeout(r, WAIT_POLL_MS));
+  }
+}
+
+/** `agentctl blocker`: report what's in the way, with screenshots or a video, or check on one. */
+async function blockerCommand(positional: string[], flags: Record<string, string>, lists: Record<string, string[]>) {
+  const wait = waitSeconds(flags);
+  if (positional.length === 1 && BLOCKER_ID.test(positional[0]!)) {
+    await showBlocker(loadConfig(), positional[0]!, wait);
+    return;
+  }
+  const title = positional.join(' ').trim();
+  if (!title) {
+    throw new UsageError(`Usage: agentctl blocker "<what's in the way>" [--details "<more>"] [--screenshot <file>] [--screen] [--wait <seconds>]`);
+  }
+  let details = flags.details?.trim() ?? null;
+  if (details === '-') details = (await readStdin()).trim();
+
+  // Read every file before reporting, so a bad path doesn't leave a blocker without its picture.
+  const files: BlockerFile[] = [...(lists.screenshot ?? []), ...(lists.video ?? [])].map(readBlockerFile);
+  if ('screen' in flags) files.push(captureScreen());
+
+  const s = findCallingSession();
+  const config = loadConfig();
+  const res = await post<BlockerResponse>(config, '/blockers', { agentId: s.agentId, title, details: details || null });
+  const id = res.stored.id;
+  const attached: string[] = [];
+  const missed: string[] = [];
+  for (const f of files) {
+    try {
+      const path = `/blockers/media?${new URLSearchParams({ id, name: f.name })}`;
+      await postFile<{ stored: BlockerMedia }>(config, path, f.bytes, f.contentType);
+      attached.push(f.name);
+    } catch (e) {
+      missed.push(`${f.name}: ${(e as Error).message}`);
+    }
+  }
+  console.log(`Blocker reported for ${s.name}: ${res.blockerUrl}`);
+  console.log(`Id: ${id}`);
+  if (attached.length) console.log(`Attached: ${attached.join(', ')}`);
+  for (const m of missed) console.log(`Not attached: ${m}`);
+  for (const w of res.warnings) console.log(`Note: ${w}`);
+  if (wait === null) {
+    console.log(`Check for the answer with: agentctl blocker ${id} --wait <seconds>`);
+    return;
+  }
+  await showBlocker(config, id, wait);
+}
+
 // ---- install / uninstall ----
 
 function readSettings(): Record<string, unknown> {
@@ -550,6 +640,9 @@ async function main(argv: string[]): Promise<number> {
       case 'done':
         await doneCommand(positional, flags, lists);
         return 0;
+      case 'blocker':
+        await blockerCommand(positional, flags, lists);
+        return 0;
       case 'perf':
         await perfCommand(positional, flags);
         return 0;
@@ -578,6 +671,8 @@ async function main(argv: string[]): Promise<number> {
     if (e instanceof NotFoundError) return 3;
     if (e instanceof SendError) return 4;
     if (e instanceof UncommittedError) return 5;
+    if (e instanceof StillOpenError) return 6;
+    if (e instanceof BlockerFileError) return 1;
     return 1;
   }
 }
