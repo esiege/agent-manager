@@ -2,9 +2,28 @@
   <img src="web/src/assets/logo.svg" alt="Agent Manager Delux" width="440">
 </p>
 
-# Agent Manager Delux
+<p align="center">
+  <b>A self-hosted dashboard for the AI agents you run.</b><br>
+  See which Claude Code sessions on your PCs are working, which are waiting on you,<br>
+  and what each one finished and wants you to check.
+</p>
 
-A self-hosted dashboard for the AI agents you run. See which Claude Code sessions on your PCs are working, which are waiting on you, and what each one finished and wants you to check.
+<p align="center">
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-2563eb"></a>
+  <img alt="Claude Code" src="https://img.shields.io/badge/Claude%20Code-hooks-d97757?logo=anthropic&logoColor=white">
+  <img alt="Azure Static Web Apps" src="https://img.shields.io/badge/Azure-Static%20Web%20Apps-0078d4?logo=microsoftazure&logoColor=white">
+  <img alt="React and Mantine" src="https://img.shields.io/badge/React-Mantine-339af0?logo=react&logoColor=white">
+  <img alt="Node, no dependencies" src="https://img.shields.io/badge/reporter-zero%20deps-333?logo=nodedotjs&logoColor=white">
+</p>
+
+<p align="center">
+  <a href="#what-you-get">Features</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#setting-up-an-agent-send-it-a-link">Set up an agent</a> ·
+  <a href="#how-keys-work">Keys</a> ·
+  <a href="#deploy-to-azure">Deploy</a> ·
+  <a href="#connect-a-pc">Connect a PC</a>
+</p>
 
 ## Why
 
@@ -22,6 +41,19 @@ If you run agents in several windows on more than one machine, you lose track of
 - **Performance data from games and apps:** frame times and memory per machine, sent with a separate key that can do nothing else. See [below](#performance-data-from-games-and-apps).
 
 ## How it works
+
+```mermaid
+flowchart LR
+    subgraph PCs["Your PCs"]
+        CC["Claude Code sessions"] -- hooks --> R["agentctl reporter"]
+    end
+    G["Games and apps"] -- game key --> API
+    R -- machine key --> API["API<br>(Azure Functions)"]
+    API --- DB[("Cosmos DB")]
+    API --> UI["Dashboard<br>(React)"]
+    API -. ntfy .-> P["Your phone"]
+    UI -- GitHub sign-in --> You(("You"))
+```
 
 Agent Manager Delux is two parts:
 
@@ -58,7 +90,8 @@ The reporter sends:
 - **Your prompts,** up to 2,000 characters. Pasted text is replaced with `[pasted text]`, and the server masks anything that looks like a secret. To keep prompts on the PC, set `"prompts": false` in `~/.agent-manager/config.json`.
 - **Git details:** the project's name, the branch, and a link to the commit, built from the repo's remote.
 
-Everything goes to your own deployment and nowhere else.
+> [!NOTE]
+> Everything goes to your own deployment and nowhere else.
 
 ## Performance data from games and apps
 
@@ -78,7 +111,10 @@ Sessions and their totals are kept for a year. The detailed samples behind the c
 
 There are two ways in. You sign in with GitHub and can see and change everything. Anything that isn't you (the reporter on a PC, a game, another service) uses a key that you make on the **Keys** tab.
 
-A key looks like `am_<id>_<secret>` and goes in the `X-Agent-Manager-Key` header of every call. (Not `Authorization`: Static Web Apps replaces that header before it reaches the API.)
+A key looks like `am_<id>_<secret>` and goes in the `X-Agent-Manager-Key` header of every call.
+
+> [!TIP]
+> Not `Authorization`: Static Web Apps replaces that header before it reaches the API.
 
 | Kind | Who uses it | What it can do |
 | --- | --- | --- |
@@ -97,29 +133,6 @@ Make one key per PC and one per game, named after it. Then you can revoke one wi
 
 The design is in [Docs/Spec-v2.md](Docs/Spec-v2.md).
 
-## Layout
-
-| Folder | What it is |
-| --- | --- |
-| `shared/` | The data contract (types, validation, state rules, secret masking) used by everything else. |
-| `api/` | Azure Functions (Node, v4 model), bundled into one file. Ingest for agents (machine keys) and reads for the UI (owner sign-in). |
-| `web/` | React + Mantine UI. `public/instructions.md` is the page agents read; `public/staticwebapp.config.json` sets routes and sign-in. |
-| `reporter/` | `agentctl`, the Claude Code reporter: one Node file that the hooks run. Built into `web/public/agentctl.js` so agents can download it. |
-| `infra/` | `main.bicep`: Static Web App, Cosmos DB serverless, Application Insights. |
-| `scripts/` | `deploy.ps1`: creates or updates the Azure resources, builds, and uploads. |
-
-## Run it locally
-
-```powershell
-npm install
-Copy-Item api/local.settings.example.json api/local.settings.json   # then set DEV_OWNER to any name
-npm run build -w reporter            # puts agentctl.js in web/public
-npm run dev:api                      # http://localhost:7071 (needs Azure Functions Core Tools 4)
-npm run dev:web                      # http://localhost:5173, proxies /api to the Functions host
-```
-
-Locally, data is kept in `api/.local-store.json` and `DEV_OWNER` stands in for a signed-in owner (ignored in Azure). Tests: `npm test`. Types: `npm run typecheck`.
-
 ## Deploy to Azure
 
 ```powershell
@@ -131,7 +144,10 @@ It creates the resource group `agent-manager` with a Static Web App (Free plan),
 
 ## Connect a PC
 
-Once per PC, and you run it yourself: Claude Code in auto mode won't let an agent change Claude Code's own settings. The full steps are in [Docs/Claude-Code-Setup.md](Docs/Claude-Code-Setup.md). In short:
+> [!IMPORTANT]
+> Once per PC, and you run it yourself: Claude Code in auto mode won't let an agent change Claude Code's own settings.
+
+The full steps are in [Docs/Claude-Code-Setup.md](Docs/Claude-Code-Setup.md). In short:
 
 1. In Agent Manager Delux, open **Keys** and make a machine key named after the PC. Run the PowerShell line it shows, which saves the key as `AGENT_MANAGER_KEY`.
 2. In your own PowerShell window on that PC, download `agentctl` from `<your site>/agentctl.js` into `~/.agent-manager`, then run `node "$HOME\.agent-manager\agentctl.js" install --url <your site>`, then `doctor`.
@@ -142,3 +158,34 @@ Once per PC, and you run it yourself: Claude Code in auto mode won't let an agen
 - **Closed windows:** a heartbeat process, started by the hooks, checks every 60 s which Claude Code processes are still alive.
 
 Run `node "$HOME/.agent-manager/agentctl.js" doctor` to check a PC.
+
+## For contributors
+
+<details>
+<summary><b>Layout</b></summary>
+
+| Folder | What it is |
+| --- | --- |
+| `shared/` | The data contract (types, validation, state rules, secret masking) used by everything else. |
+| `api/` | Azure Functions (Node, v4 model), bundled into one file. Ingest for agents (machine keys) and reads for the UI (owner sign-in). |
+| `web/` | React + Mantine UI. `public/instructions.md` is the page agents read; `public/staticwebapp.config.json` sets routes and sign-in. |
+| `reporter/` | `agentctl`, the Claude Code reporter: one Node file that the hooks run. Built into `web/public/agentctl.js` so agents can download it. |
+| `infra/` | `main.bicep`: Static Web App, Cosmos DB serverless, Application Insights. |
+| `scripts/` | `deploy.ps1`: creates or updates the Azure resources, builds, and uploads. |
+
+</details>
+
+<details>
+<summary><b>Run it locally</b></summary>
+
+```powershell
+npm install
+Copy-Item api/local.settings.example.json api/local.settings.json   # then set DEV_OWNER to any name
+npm run build -w reporter            # puts agentctl.js in web/public
+npm run dev:api                      # http://localhost:7071 (needs Azure Functions Core Tools 4)
+npm run dev:web                      # http://localhost:5173, proxies /api to the Functions host
+```
+
+Locally, data is kept in `api/.local-store.json` and `DEV_OWNER` stands in for a signed-in owner (ignored in Azure). Tests: `npm test`. Types: `npm run typecheck`.
+
+</details>
