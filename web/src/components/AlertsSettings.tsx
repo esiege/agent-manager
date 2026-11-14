@@ -34,12 +34,14 @@ const EVENT_LABELS: Record<AlertEvent, string> = {
   waiting: 'Needs you (permission, question)',
   failed: 'Failed',
   unfinished: 'Cut off mid-request',
+  blocker: 'Reported a blocker',
 };
 const EVENT_BADGES: Record<AlertEvent, { label: string; color: string }> = {
   finished: { label: 'Finished', color: 'teal' },
   waiting: { label: 'Needs you', color: 'yellow' },
   failed: { label: 'Failed', color: 'red' },
   unfinished: { label: 'Cut off', color: 'orange' },
+  blocker: { label: 'Blocker', color: 'red' },
 };
 
 /** A topic nobody can guess: anyone who knows a ntfy.sh topic can read it. */

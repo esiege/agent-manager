@@ -11,6 +11,9 @@ import {
   type AlertSubscription,
   type AlertSubscriptionInput,
   type ApiError,
+  type Blocker,
+  type BlockersResponse,
+  type ResolveBlockerInput,
   type CreateKeyResponse,
   type HideAgentsResponse,
   type KeysResponse,
@@ -142,7 +145,14 @@ export const api = {
   hideAgents: (agentIds: string[], hidden: boolean) =>
     request<HideAgentsResponse>('/agents/hide', { method: 'POST', body: { agentIds, hidden } }),
   sendMessage: (input: SendMessageInput) => request<SendMessageResponse>('/messages', { method: 'POST', body: input }),
+  blockers: (signal?: AbortSignal) => request<BlockersResponse>('/blockers', { signal }),
+  resolveBlocker: (input: ResolveBlockerInput) => request<{ blocker: Blocker }>('/blockers/resolve', { method: 'POST', body: input }),
 };
+
+/** A blocker's screenshot or video, for an <img> or <video> (same origin, so the sign-in cookie goes along). */
+export function blockerMediaUrl(blockerId: string, mediaId: string): string {
+  return `${API_BASE}/blockers/media?${new URLSearchParams({ id: blockerId, media: mediaId }).toString()}`;
+}
 
 /** Who is signed in, from the site's built-in auth. Used to name a non-owner account. */
 export async function fetchSignedInName(): Promise<string | null> {

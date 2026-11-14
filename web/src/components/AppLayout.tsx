@@ -4,6 +4,7 @@ import {
   ActionIcon,
   Anchor,
   AppShell,
+  Badge,
   Box,
   Button,
   Container,
@@ -15,13 +16,15 @@ import {
   useMantineColorScheme,
 } from '@mantine/core';
 import { IconLogout, IconMoon, IconSun } from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router';
-import { LOGOUT_URL } from '../lib/api';
+import { api, LOGOUT_URL } from '../lib/api';
 import { useMe } from './AuthGate';
 
 const TABS = [
   { to: '/', label: 'Overview' },
   { to: '/dashboard', label: 'Dashboard' },
+  { to: '/blockers', label: 'Blockers' },
   { to: '/reporting', label: 'Reporting' },
   { to: '/performance', label: 'Performance' },
   { to: '/agents', label: 'Agents' },
@@ -49,9 +52,39 @@ function ThemeToggle() {
   );
 }
 
+const BLOCKER_COUNT_MS = 20_000;
+
+/**
+ * How many blockers are open, for the tab's badge. Quiet on errors: the pages say when the API
+ * is unreachable. Reloads on navigation, so answering one updates the badge.
+ */
+function useOpenBlockers(pathname: string): number {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    const load = () => {
+      if (document.visibilityState !== 'visible') return;
+      api
+        .blockers(controller.signal)
+        .then((r) => setCount(r.blockers.filter((b) => b.status === 'open').length))
+        .catch(() => {});
+    };
+    load();
+    const timer = setInterval(load, BLOCKER_COUNT_MS);
+    document.addEventListener('visibilitychange', load);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', load);
+    };
+  }, [pathname]);
+  return count;
+}
+
 export function AppLayout() {
   const me = useMe();
   const { pathname } = useLocation();
+  const openBlockers = useOpenBlockers(pathname);
 
   return (
     <AppShell header={{ height: 96 }} padding={{ base: 'sm', sm: 'md' }}>
@@ -85,7 +118,18 @@ export function AppLayout() {
           <Tabs value={currentTab(pathname)} activateTabWithKeyboard>
             <Tabs.List className="am-tabs" px={{ base: 4, sm: 'xs' }} aria-label="Sections">
               {TABS.map((tab) => (
-                <Tabs.Tab key={tab.to} value={tab.to} renderRoot={(props) => <Link {...props} to={tab.to} />}>
+                <Tabs.Tab
+                  key={tab.to}
+                  value={tab.to}
+                  renderRoot={(props) => <Link {...props} to={tab.to} />}
+                  rightSection={
+                    tab.to === '/blockers' && openBlockers > 0 ? (
+                      <Badge size="xs" circle color="red" aria-label={`${openBlockers} open`}>
+                        {openBlockers}
+                      </Badge>
+                    ) : undefined
+                  }
+                >
                   {tab.label}
                 </Tabs.Tab>
               ))}
