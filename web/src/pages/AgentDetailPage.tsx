@@ -1,5 +1,5 @@
 // U-03: one agent: header (story, task, prompt), its latest finished work, resume commands (C-07),
-// sub-agents, timeline, details and logs.
+// sub-agents, timeline and details.
 
 import {
   costOf,
@@ -10,10 +10,9 @@ import {
   type AgentDetailResponse,
   type AgentEvent,
   type AgentView,
-  type LogEntry,
   type TokenUsage,
 } from '@agent-manager-delux/shared';
-import { Alert, Anchor, Box, Button, Group, Paper, SimpleGrid, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
+import { Alert, Anchor, Box, Group, Paper, SimpleGrid, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
 import { IconAlertTriangle, IconArrowLeft, IconExternalLink } from '@tabler/icons-react';
 import {
   createColumnHelper,
@@ -29,7 +28,6 @@ import { CopyField, CopyIcon } from '../components/Copy';
 import { DataTable, sortedRows } from '../components/DataTable';
 import { ExportMenu } from '../components/ExportMenu';
 import { JsonBlock } from '../components/JsonBlock';
-import { useLogsTable, LogDetail, LOG_CSV_COLUMNS, type LogFilterField } from '../components/LogsTable';
 import { SendMessage } from '../components/SendMessage';
 import { EmptyState, LoadError, TableSkeleton } from '../components/States';
 import { RelativeTime, UpdatedAgo } from '../components/Time';
@@ -46,9 +44,6 @@ import { useSortParam } from '../lib/urlState';
 
 // The report brings the Markdown renderer, which most pages don't need.
 const WorkReport = lazy(() => import('../components/WorkReport').then((m) => ({ default: m.WorkReport })));
-
-const AGENT_LOGS_LIMIT = 200;
-const AGENT_LOGS_POLL_MS = 10_000;
 
 // ---- Header ----
 
@@ -473,58 +468,6 @@ function SubAgents({ items, flashing }: { items: AgentView[]; flashing: Readonly
   );
 }
 
-// ---- Logs ----
-
-function AgentLogs({ agentId }: { agentId: string }) {
-  const navigate = useNavigate();
-  const load = useCallback(
-    (signal: AbortSignal) => api.logs({ agentId, limit: AGENT_LOGS_LIMIT }, signal),
-    [agentId],
-  );
-  const { data, error, refresh } = usePolling(`logs:${agentId}`, load, { intervalMs: AGENT_LOGS_POLL_MS });
-  const [sorting, onSortingChange] = useSortParam('logSort', [{ id: 'time', desc: true }]);
-  const onFilter = useCallback(
-    (field: LogFilterField, value: string) => {
-      const params = new URLSearchParams({ agentId });
-      params.set(field, value);
-      navigate(`/logs?${params.toString()}`);
-    },
-    [agentId, navigate],
-  );
-  const logs = data?.logs ?? NO_LOGS;
-  const table = useLogsTable({ logs, sorting, onSortingChange, onFilter, hideAgent: true });
-  const logsLink = `/logs?${new URLSearchParams({ agentId }).toString()}`;
-
-  return (
-    <Section
-      title="Logs"
-      note={data?.truncated ? `Newest ${AGENT_LOGS_LIMIT} shown` : undefined}
-      actions={
-        <>
-          <Button component={Link} to={logsLink} variant="default" size="xs">
-            Open in Logs
-          </Button>
-          <ExportMenu baseName={`logs-${fileSafe(agentId)}`} rows={() => sortedRows(table)} columns={LOG_CSV_COLUMNS} count={logs.length} />
-        </>
-      }
-    >
-      {!data ? (
-        error ? (
-          <LoadError message={error.message} onRetry={refresh} />
-        ) : (
-          <TableSkeleton rows={3} />
-        )
-      ) : logs.length === 0 ? (
-        <EmptyState title="No logs from this agent" />
-      ) : (
-        <DataTable table={table} label="Logs from this agent" minWidth={900} pageSize={50} renderDetail={(row) => <LogDetail row={row} />} />
-      )}
-    </Section>
-  );
-}
-
-const NO_LOGS: LogEntry[] = [];
-
 // ---- Page ----
 
 function Section({ title, note, actions, children }: { title: string; note?: string; actions?: ReactNode; children: ReactNode }) {
@@ -625,7 +568,6 @@ export function AgentDetailPage() {
           <Section title="Details">
             <JsonBlock value={data.agent.details} label="Copy details" />
           </Section>
-          <AgentLogs agentId={data.agent.id} />
         </>
       )}
     </>

@@ -5,8 +5,8 @@ import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } 
 import { guarded, type Ctx, type Handler } from './http';
 import { getStore } from './store';
 import { getMediaStore } from './store/media';
-import { heartbeat, postLogs, report } from './handlers/ingest';
-import { agent, agents, getLogs, me } from './handlers/read';
+import { heartbeat, report } from './handlers/ingest';
+import { agent, agents, me } from './handlers/read';
 import { createKey, listKeys, revokeKey } from './handlers/keys';
 import { deleteAlert, listAlerts, saveAlert, sweepAlerts, testAlert } from './handlers/alerts';
 import { ackMessage, inbox, sendMessage } from './handlers/messages';
@@ -48,12 +48,10 @@ function register(name: string, method: 'GET' | 'POST', route: string, handler: 
 
 register('report', 'POST', 'v1/report', report);
 register('heartbeat', 'POST', 'v1/heartbeat', heartbeat);
-register('postLogs', 'POST', 'v1/logs', postLogs);
 
 register('me', 'GET', 'v1/me', me);
 register('agents', 'GET', 'v1/agents', agents);
 register('agent', 'GET', 'v1/agent', agent);
-register('getLogs', 'GET', 'v1/logs', getLogs);
 register('hideAgents', 'POST', 'v1/agents/hide', hideAgents);
 register('reporting', 'GET', 'v1/reporting', reporting);
 

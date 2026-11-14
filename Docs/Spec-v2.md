@@ -2,6 +2,8 @@
 
 Oct 10, 2026 · Draft 1
 
+> **Nov 14, 2026: logs were removed.** No client ever sent any, so `/api/v1/logs`, the Logs tab and the logs on agent pages are gone. R-03, U-04, the log parts of R-07, U-03, U-05 and U-06, and acceptance test 5 no longer apply.
+
 Build one personal web app, hosted on Azure, that shows every agent the owner runs, wherever it runs: Claude Code sessions on 2–3 PCs, OpenClaw personas, and LLM-driven services such as Game Master Assistant. It shows what each agent is doing now, which ones stopped recently, the troubleshooting logs from every client, and one LLM-written status that says whether anything needs the owner. Any agent joins by reading one instructions page.
 
 This replaces [Spec.md](Spec.md) as the v1 plan. Spec.md's local controls (holds, pause, locks) become a later add-on that runs on each PC (see Phases).
@@ -76,7 +78,7 @@ All writes are `POST` with `Authorization: Bearer <key>` and a JSON body. Keys a
 | --- | --- | --- | --- |
 | R-01 | `POST /api/v1/report` creates or updates an agent and adds an event. Unknown fields are kept in `details`, so a new kind of agent needs no change to the manager. | Must | 1 |
 | R-02 | `POST /api/v1/heartbeat`: a machine lists the agents still alive on it. Its agents missing from the list become Stopped. An agent with no report or heartbeat for 3 min becomes Lost. | Must | 1 |
-| R-03 | `POST /api/v1/logs` takes up to 500 entries per call, each with level, source, message and time, plus optional agent id, correlation id and context. | Must | 1 |
+| R-03 | *(Removed Nov 14, 2026.)* `POST /api/v1/logs` takes up to 500 entries per call, each with level, source, message and time, plus optional agent id, correlation id and context. | Must | 1 |
 | R-04 | Every write returns what the manager stored and the agent's page URL. `"test": true` checks a call without storing it, so an agent can confirm its setup. | Must | 1 |
 | R-05 | Errors are loud: a bad call gets a 4xx with a one-line reason the agent can act on (missing field, bad key, too large). | Must | 1 |
 | R-06 | The full API is described at `/api/v1/openapi.json`. | Should | 1 |
@@ -176,7 +178,7 @@ React and TypeScript. Tabs across the top, every list sortable and filterable, a
 | U-01 | **Overview** tab: the status at the top, counts by state (working, waiting on you, failed, lost), and a "Needs you" list. | Must | 1 |
 | U-02 | **Agents** tab: one row per agent (a project's sessions on one machine are one agent; the row opens to show each session) for live agents and those stopped in the last 7 days. Columns: name, machine, state (with an unfinished warning), story (with the latest finished work), task (with the activity), prompt, threads, last seen. Sortable by any column, filterable by kind, machine and state, with sub-agents nested. | Must | 1 |
 | U-03 | Agent detail: story, task and prompt, why a request is unfinished, the latest report of finished work, the timeline of events, sub-agents, details as formatted JSON, and the agent's logs. | Must | 1 |
-| U-04 | **Logs** tab: every log, newest first, sortable, filterable by level, source, agent, correlation id, text and time range. | Must | 1 |
+| U-04 | *(Removed Nov 14, 2026.)* **Logs** tab: every log, newest first, sortable, filterable by level, source, agent, correlation id, text and time range. | Must | 1 |
 | U-05 | Export the current filtered view of logs, events or agents as CSV or JSON. | Must | 1 |
 | U-06 | Copy buttons on ids, commands, links, log entries (as JSON), and every code block on the instructions page. | Must | 1 |
 | U-07 | **Instructions** tab: the rendered instructions page, plus a button that copies the onboarding sentence with the manager's URL filled in. | Must | 1 |

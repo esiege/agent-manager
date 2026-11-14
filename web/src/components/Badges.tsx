@@ -1,19 +1,11 @@
-import { INSTRUCTIONS_VERSION, type AgentState, type LogLevel } from '@agent-manager-delux/shared';
+import { INSTRUCTIONS_VERSION, type AgentState } from '@agent-manager-delux/shared';
 import { Badge, Tooltip } from '@mantine/core';
-import { LEVEL_COLOR, STATE_COLOR, STATE_LABEL } from '../lib/labels';
+import { STATE_COLOR, STATE_LABEL } from '../lib/labels';
 
 export function StateBadge({ state }: { state: AgentState }) {
   return (
     <Badge color={STATE_COLOR[state]} variant="light" radius="sm" tt="none" style={{ flexShrink: 0 }}>
       {STATE_LABEL[state]}
-    </Badge>
-  );
-}
-
-export function LevelBadge({ level }: { level: LogLevel }) {
-  return (
-    <Badge color={LEVEL_COLOR[level] ?? 'gray'} variant="light" radius="sm" tt="none" style={{ flexShrink: 0 }}>
-      {level}
     </Badge>
   );
 }

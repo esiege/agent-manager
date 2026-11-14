@@ -9,8 +9,6 @@ import {
   type AlertSubscription,
   type Blocker,
   type KeyScope,
-  type LogEntry,
-  type LogLevel,
   type MachineKey,
   type MessageStatus,
   type PerfSample,
@@ -24,25 +22,13 @@ export interface StoredKey extends Omit<MachineKey, 'scope'> {
   hash: string;
 }
 
-export interface LogFilter {
-  levels: LogLevel[];
-  source?: string;
-  agentId?: string;
-  correlationId?: string;
-  /** Case-insensitive text to find in the message. */
-  text?: string;
-  from?: string;
-  to?: string;
-  limit: number;
-}
-
 export interface MessageFilter {
   agentId?: string;
   status?: MessageStatus;
   limit: number;
 }
 
-/** Events and logs older than this are dropped (Non-functional: Retention). */
+/** Events older than this are dropped (Non-functional: Retention). */
 export const RETENTION_DAYS = 30;
 
 /**
@@ -87,10 +73,6 @@ export interface Store {
   listEvents(agentId: string, limit: number): Promise<AgentEvent[]>;
   /** Every agent's reporting events (isReportingEvent) at or after `since`, in no order. */
   listReportingEvents(since: string): Promise<AgentEvent[]>;
-
-  addLogs(logs: LogEntry[]): Promise<void>;
-  /** Newest first; `truncated` when more than `limit` matched. */
-  queryLogs(filter: LogFilter): Promise<{ logs: LogEntry[]; truncated: boolean }>;
 
   getAlert(id: string): Promise<AlertSubscription | null>;
   listAlerts(): Promise<AlertSubscription[]>;

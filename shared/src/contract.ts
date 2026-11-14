@@ -56,13 +56,8 @@ export const WORK_TYPES = [
 ] as const;
 export type WorkType = (typeof WORK_TYPES)[number];
 
-export const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;
-export type LogLevel = (typeof LOG_LEVELS)[number];
-
 export const LIMITS = {
   reportBytes: 64 * 1024,
-  logsBytes: 1024 * 1024,
-  logsPerCall: 500,
   heartbeatAgents: 500,
   idLength: 200,
   nameLength: 120,
@@ -150,22 +145,6 @@ export interface HeartbeatInput {
   kind: AgentKind;
   agentIds: string[];
   at?: string;
-  test?: boolean;
-}
-
-export interface LogEntryInput {
-  level: LogLevel;
-  source: string;
-  message: string;
-  at?: string;
-  agentId?: string | null;
-  correlationId?: string | null;
-  context?: Record<string, unknown>;
-}
-
-/** POST /api/v1/logs */
-export interface LogsInput {
-  entries: LogEntryInput[];
   test?: boolean;
 }
 
@@ -288,19 +267,6 @@ export interface AgentEvent {
   usage?: TokenUsage[] | null;
   link: string | null;
   details: Record<string, unknown> | null;
-}
-
-export interface LogEntry {
-  id: string;
-  level: LogLevel;
-  source: string;
-  message: string;
-  at: string;
-  receivedAt: string;
-  agentId: string | null;
-  correlationId: string | null;
-  context: Record<string, unknown> | null;
-  keyName: string;
 }
 
 export interface AlertSubscription {
@@ -543,8 +509,6 @@ export interface ReportResponse extends WriteResponse<Agent> {
 
 export interface HeartbeatResponse extends WriteResponse<{ alive: number; stopped: string[]; unknown: string[] }> {}
 
-export interface LogsResponse extends WriteResponse<{ count: number }> {}
-
 export interface AgentsResponse {
   now: string;
   agents: AgentView[];
@@ -557,23 +521,6 @@ export interface AgentDetailResponse {
   events: AgentEvent[];
   /** Messages sent to it from the UI, newest first. Only Claude Code sessions take them. */
   messages: AgentMessage[];
-}
-
-export interface LogsQuery {
-  level?: LogLevel[];
-  source?: string;
-  agentId?: string;
-  correlationId?: string;
-  q?: string;
-  from?: string;
-  to?: string;
-  limit?: number;
-}
-
-export interface LogsQueryResponse {
-  logs: LogEntry[];
-  /** True when more logs matched than `limit`. */
-  truncated: boolean;
 }
 
 export interface KeysResponse {

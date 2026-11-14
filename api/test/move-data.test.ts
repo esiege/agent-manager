@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Agent, AgentEvent, LogEntry } from '@agent-manager-delux/shared';
+import type { Agent, AgentEvent } from '@agent-manager-delux/shared';
 import type { Snapshot } from '../src/store/memory';
 import { toCloud, toLocal } from '../src/tools/move-data';
 
@@ -10,10 +10,6 @@ function event(id: string, type: AgentEvent['type'], receivedAt: string): AgentE
   return { id, agentId: 'pc/claude/1', type, at: receivedAt, receivedAt, state: null, activity: null, link: null, details: null };
 }
 
-function log(id: string, receivedAt: string): LogEntry {
-  return { id, level: 'info', source: 'test', message: 'hi', at: receivedAt, receivedAt, agentId: null, correlationId: null, context: null, keyName: 'pc' };
-}
-
 const agent = { id: 'pc/claude/1', machine: 'pc', kind: 'claude', lastSeen: daysAgo(1) } as unknown as Agent;
 
 function snapshot(): Snapshot {
@@ -21,7 +17,6 @@ function snapshot(): Snapshot {
     keys: [{ id: 'k1', name: 'pc', hash: 'abc', createdAt: daysAgo(100) } as unknown as Snapshot['keys'][number]],
     agents: [agent],
     events: [event('fresh', 'state', daysAgo(20)), event('old', 'state', daysAgo(40)), event('turn', 'turn', daysAgo(40))],
-    logs: [log('l1', daysAgo(1)), log('l2', daysAgo(31))],
     messages: [{ id: 'm1' } as never],
   };
 }
@@ -32,8 +27,7 @@ describe('toCloud', () => {
     const ids = plan.docs.events.map((e) => e.id);
     expect(ids).toEqual(['fresh', 'turn']); // a 40-day-old turn is a reporting event, kept a year
     expect(plan.docs.events[0]?.ttl).toBe(10 * 86_400);
-    expect(plan.docs.logs.map((l) => l.id)).toEqual(['l1']);
-    expect(plan.expired).toBe(2);
+    expect(plan.expired).toBe(1);
   });
 
   it('stores agents under a hashed id, and keeps keys so PCs can go on using them', () => {

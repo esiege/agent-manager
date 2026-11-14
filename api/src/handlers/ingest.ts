@@ -1,14 +1,12 @@
-// What agents call, with a machine key: report, heartbeat, logs (R-01 to R-05).
+// What agents call, with a machine key: report and heartbeat (R-01, R-02, R-04, R-05).
 
 import { randomUUID } from 'node:crypto';
 import {
   DEFAULT_LOST_AFTER_SECONDS,
   LIMITS,
-  maskDeep,
   maskSecrets,
   mergeUsage,
   validateHeartbeat,
-  validateLogs,
   validateReport,
   type Agent,
   type AgentEvent,
@@ -16,8 +14,6 @@ import {
   type ReportInput,
   type WorkResult,
   type HeartbeatResponse,
-  type LogEntry,
-  type LogsResponse,
   type ReportResponse,
 } from '@agent-manager-delux/shared';
 import { notify, sweepLost } from '../alerts';
@@ -224,35 +220,6 @@ export const heartbeat: Handler = async (req, ctx) => {
     ok: true,
     test: Boolean(input.test),
     stored: { alive: input.agentIds.length - unknown.length, stopped, unknown },
-    warnings: result.warnings,
-  };
-  return ok(body);
-};
-
-export const postLogs: Handler = async (req, ctx) => {
-  const key = await requireKey(req, ctx);
-  const result = validateLogs(readJson(req, LIMITS.logsBytes));
-  if (!result.ok) return fail(400, result.error);
-
-  const now = ctx.now().toISOString();
-  const logs: LogEntry[] = result.value.entries.map((e) => ({
-    id: randomUUID(),
-    level: e.level,
-    source: e.source,
-    message: maskSecrets(e.message),
-    at: e.at ?? now,
-    receivedAt: now,
-    agentId: e.agentId ?? null,
-    correlationId: e.correlationId ?? null,
-    context: e.context ? maskDeep(e.context) : null,
-    keyName: key.name,
-  }));
-
-  if (!result.value.test) await ctx.store.addLogs(logs);
-  const body: LogsResponse = {
-    ok: true,
-    test: Boolean(result.value.test),
-    stored: { count: logs.length },
     warnings: result.warnings,
   };
   return ok(body);

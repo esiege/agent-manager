@@ -9,7 +9,6 @@ import {
   maskDeep,
   maskSecrets,
   validateHeartbeat,
-  validateLogs,
   validateReport,
   workType,
 } from '../src';
@@ -57,24 +56,6 @@ describe('validateHeartbeat', () => {
       ok: false,
       error: 'agentIds is required and must be an array',
     });
-  });
-});
-
-describe('validateLogs', () => {
-  it('maps level aliases and keeps extra fields in context', () => {
-    const r = validateLogs({ entries: [{ level: 'Warning', source: 'gma', message: 'slow', route: '/x' }] });
-    expect(r.ok && r.value.entries[0]).toEqual({ level: 'warn', source: 'gma', message: 'slow', context: { route: '/x' } });
-    expect(r.ok && r.warnings).toEqual(['entries[0].level "Warning" was stored as "warn"']);
-  });
-  it('names the bad entry', () => {
-    expect(validateLogs({ entries: [{ level: 'info', source: 's', message: 'ok' }, { level: 'info', source: 's' }] })).toEqual({
-      ok: false,
-      error: 'entries[1].message is required and must be a non-empty string',
-    });
-  });
-  it('refuses more than 500 entries', () => {
-    const entries = Array.from({ length: 501 }, () => ({ level: 'info', source: 's', message: 'm' }));
-    expect(validateLogs({ entries })).toEqual({ ok: false, error: 'entries has 501 items; send at most 500 per call' });
   });
 });
 

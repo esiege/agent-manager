@@ -7,18 +7,17 @@ import type {
   HeartbeatResponse,
   HideAgentsResponse,
   InboxResponse,
-  LogsQueryResponse,
   ReportResponse,
   SendMessageResponse,
 } from '@agent-manager-delux/shared';
 import { OWNER_WRITE_HEADER, unfinishedReason } from '@agent-manager-delux/shared';
 import { resetAuthState } from '../src/auth';
-import { heartbeat, postLogs, report } from '../src/handlers/ingest';
+import { heartbeat, report } from '../src/handlers/ingest';
 import { hideAgents } from '../src/handlers/hide';
 import { reporting } from '../src/handlers/reporting';
 import { createKey, listKeys, revokeKey } from '../src/handlers/keys';
 import { ackMessage, inbox, sendMessage } from '../src/handlers/messages';
-import { agent, agents, getLogs, me } from '../src/handlers/read';
+import { agent, agents, me } from '../src/handlers/read';
 import { guarded, type Ctx, type Handler, type Req } from '../src/http';
 import { MemoryStore } from '../src/store/memory';
 
@@ -352,30 +351,6 @@ describe('heartbeats', () => {
     const states = Object.fromEntries(list.agents.map((a) => [a.id, a.effectiveState]));
     // "a" was refreshed, "b" stopped, and the OpenClaw agent (another kind) was left alone.
     expect(states).toEqual({ a: 'idle', b: 'stopped', claw: 'lost' });
-  });
-});
-
-describe('logs', () => {
-  it('masks secrets, filters and reports truncation', async () => {
-    const key = await makeKey();
-    const entries = [
-      { level: 'error', source: 'gma-web', message: 'Timed out', correlationId: 'req-1', at: '2026-10-10T11:00:00Z' },
-      { level: 'error', source: 'gma-web', message: 'Bad token: Bearer abcdef123456', correlationId: 'req-1', at: '2026-10-10T11:00:01Z' },
-      { level: 'info', source: 'gma-web', message: 'Started', at: '2026-10-10T10:00:00Z' },
-    ];
-    const posted = await call(postLogs, 'POST', '/api/v1/logs', { key, body: { entries } });
-    expect(posted.status).toBe(200);
-
-    const errors = (await call(getLogs, 'GET', '/api/v1/logs?level=error&correlationId=req-1&limit=1', asOwner))
-      .body as LogsQueryResponse;
-    expect(errors.truncated).toBe(true);
-    expect(errors.logs.map((l) => l.message)).toEqual(['Bad token: Bearer [masked]']);
-
-    const text = (await call(getLogs, 'GET', '/api/v1/logs?q=STARTED', asOwner)).body as LogsQueryResponse;
-    expect(text.logs.map((l) => l.message)).toEqual(['Started']);
-
-    const bad = await call(getLogs, 'GET', '/api/v1/logs?level=loud', asOwner);
-    expect(bad).toEqual({ status: 400, body: { error: 'level must be one or more of debug, info, warn, error' } });
   });
 });
 

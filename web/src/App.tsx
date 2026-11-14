@@ -7,7 +7,6 @@ import { AgentDetailPage } from './pages/AgentDetailPage';
 import { AgentsPage } from './pages/AgentsPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { KeysPage } from './pages/KeysPage';
-import { LogsPage } from './pages/LogsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { OverviewPage } from './pages/OverviewPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -61,7 +60,6 @@ export function App() {
           />
           <Route path="agents" element={<AgentsPage />} />
           <Route path="agents/detail" element={<AgentDetailPage />} />
-          <Route path="logs" element={<LogsPage />} />
           <Route
             path="instructions"
             element={

@@ -21,7 +21,6 @@ import {
   IconKey,
   IconLayoutDashboard,
   IconLogout,
-  IconLogs,
   IconRadar2,
   IconRobot,
 } from '@tabler/icons-react';
@@ -40,7 +39,6 @@ const TABS = [
   { to: '/reporting', label: 'Reporting', icon: IconChartHistogram },
   { to: '/performance', label: 'Game', icon: IconGauge },
   { to: '/agents', label: 'Agents', icon: IconRobot },
-  { to: '/logs', label: 'Logs', icon: IconLogs },
   { to: '/instructions', label: 'Instructions', icon: IconCompass },
   { to: '/keys', label: 'Keys', icon: IconKey },
   { to: '/settings', label: 'Settings', icon: IconAdjustmentsHorizontal },

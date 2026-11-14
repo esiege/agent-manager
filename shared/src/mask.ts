@@ -1,5 +1,5 @@
-// Masks values that look like secrets before logs are stored (Non-functional: Privacy).
-// Best effort: clients must still not log secrets.
+// Masks values that look like secrets before reports are stored (Non-functional: Privacy).
+// Best effort: clients must still not send secrets.
 
 const PATTERNS: RegExp[] = [
   /\bam_[a-z0-9]{8,}_[A-Za-z0-9_-]{16,}\b/g, // Agent Manager Delux machine keys

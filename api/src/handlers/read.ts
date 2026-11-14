@@ -1,7 +1,6 @@
 // What the UI reads, as the signed-in owner.
 
 import {
-  LOG_LEVELS,
   RECENT_DAYS,
   effectiveState,
   isRunning,
@@ -10,19 +9,14 @@ import {
   type AgentDetailResponse,
   type AgentsResponse,
   type AgentView,
-  type LogLevel,
-  type LogsQueryResponse,
   type MeResponse,
 } from '@agent-manager-delux/shared';
 import { requireOwner } from '../auth';
 import { sweepLost } from '../alerts';
 import { HttpError, ok, publicOrigin, query, type Handler } from '../http';
-import type { LogFilter } from '../store/types';
 
 const MAX_EVENTS = 500;
 const MAX_MESSAGES = 20;
-const DEFAULT_LOG_LIMIT = 1000;
-const MAX_LOG_LIMIT = 5000;
 
 function toViews(agents: Agent[], now: number): AgentView[] {
   const states = new Map(agents.map((a) => [a.id, effectiveState(a, now)]));
@@ -89,47 +83,5 @@ export const agent: Handler = async (req, ctx) => {
     events,
     messages: messages.map((m) => ({ ...m, status: messageStatus(m, now.getTime()) })),
   };
-  return ok(body);
-};
-
-function isoParam(params: URLSearchParams, name: string): string | undefined {
-  const v = params.get(name);
-  if (!v) return undefined;
-  if (Number.isNaN(Date.parse(v))) throw new HttpError(400, `${name} must be an ISO 8601 time`);
-  return new Date(v).toISOString();
-}
-
-export const getLogs: Handler = async (req, ctx) => {
-  requireOwner(req, ctx);
-  const p = query(req);
-
-  const levels = (p.get('level') ?? '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  for (const l of levels) {
-    if (!(LOG_LEVELS as readonly string[]).includes(l)) throw new HttpError(400, `level must be one or more of ${LOG_LEVELS.join(', ')}`);
-  }
-  const limit = p.get('limit') === null ? DEFAULT_LOG_LIMIT : Number(p.get('limit'));
-  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LOG_LIMIT) {
-    throw new HttpError(400, `limit must be a whole number from 1 to ${MAX_LOG_LIMIT}`);
-  }
-
-  const filter: LogFilter = { levels: levels as LogLevel[], limit };
-  const text = (name: string) => p.get(name)?.trim() || undefined;
-  const source = text('source');
-  const agentId = text('agentId');
-  const correlationId = text('correlationId');
-  const q = text('q');
-  const from = isoParam(p, 'from');
-  const to = isoParam(p, 'to');
-  if (source) filter.source = source;
-  if (agentId) filter.agentId = agentId;
-  if (correlationId) filter.correlationId = correlationId;
-  if (q) filter.text = q;
-  if (from) filter.from = from;
-  if (to) filter.to = to;
-
-  const body: LogsQueryResponse = await ctx.store.queryLogs(filter);
   return ok(body);
 };

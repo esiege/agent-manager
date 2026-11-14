@@ -6,7 +6,6 @@ import {
   ALERT_CHANNELS,
   ALERT_EVENTS,
   LIMITS,
-  LOG_LEVELS,
   PERF_SESSION_ID,
   REPORTED_STATES,
   WORK_TYPES,
@@ -15,9 +14,6 @@ import {
   type AlertEvent,
   type AlertSubscriptionInput,
   type HeartbeatInput,
-  type LogEntryInput,
-  type LogLevel,
-  type LogsInput,
   type PerfHitch,
   type PerfSampleInput,
   type PerfSamplesInput,
@@ -279,66 +275,6 @@ export function validateHeartbeat(body: unknown): Result<HeartbeatInput> {
     if (extra.length) r.warnings.push(`Unknown field(s) ${extra.join(', ')} were ignored`);
     const value: HeartbeatInput = { machine, kind, agentIds: [...new Set(agentIds)] };
     if (at !== undefined) value.at = at;
-    if (test !== undefined) value.test = test;
-    return value;
-  });
-}
-
-// Levels clients commonly send, mapped onto ours.
-const LEVEL_ALIASES: Record<string, LogLevel> = {
-  trace: 'debug',
-  verbose: 'debug',
-  debug: 'debug',
-  info: 'info',
-  information: 'info',
-  notice: 'info',
-  warn: 'warn',
-  warning: 'warn',
-  error: 'error',
-  err: 'error',
-  fatal: 'error',
-  critical: 'error',
-};
-
-function readLogEntry(raw: unknown, i: number, warnings: string[]): LogEntryInput {
-  const path = `entries[${i}]`;
-  if (!isObject(raw)) throw new Invalid(`${path} must be a JSON object`);
-  const r = new Reader(raw, path);
-
-  const rawLevel = r.requiredString('level', 20);
-  const level = LEVEL_ALIASES[rawLevel.toLowerCase()];
-  if (!level) throw new Invalid(`${path}.level must be one of ${LOG_LEVELS.join(', ')}`);
-  if (level !== rawLevel) warnings.push(`${path}.level "${rawLevel}" was stored as "${level}"`);
-
-  const source = r.requiredString('source', LIMITS.nameLength);
-  const message = r.optionalString('message', LIMITS.messageLength, { truncate: true });
-  if (message == null || message.trim() === '') throw new Invalid(`${path}.message is required and must be a non-empty string`);
-  const at = r.optionalTime('at');
-  const agentId = r.optionalString('agentId', LIMITS.idLength);
-  const correlationId = r.optionalString('correlationId', LIMITS.idLength);
-  const context = { ...(r.optionalObject('context') ?? {}) };
-  const extra = r.unknownKeys();
-  for (const k of extra) context[k] = raw[k];
-  warnings.push(...r.warnings);
-
-  const entry: LogEntryInput = { level, source, message };
-  if (at !== undefined) entry.at = at;
-  if (agentId != null) entry.agentId = agentId;
-  if (correlationId != null) entry.correlationId = correlationId;
-  if (Object.keys(context).length) entry.context = context;
-  return entry;
-}
-
-export function validateLogs(body: unknown): Result<LogsInput> {
-  return run(body, 'logs', (r) => {
-    const raw = r.array('entries');
-    if (raw.length === 0) throw new Invalid('entries must hold at least one log entry');
-    if (raw.length > LIMITS.logsPerCall) throw new Invalid(`entries has ${raw.length} items; send at most ${LIMITS.logsPerCall} per call`);
-    const entries = raw.map((e, i) => readLogEntry(e, i, r.warnings));
-    const test = r.optionalBool('test');
-    const extra = r.unknownKeys();
-    if (extra.length) r.warnings.push(`Unknown field(s) ${extra.join(', ')} were ignored`);
-    const value: LogsInput = { entries };
     if (test !== undefined) value.test = test;
     return value;
   });

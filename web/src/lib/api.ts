@@ -17,8 +17,6 @@ import {
   type CreateKeyResponse,
   type HideAgentsResponse,
   type KeysResponse,
-  type LogsQuery,
-  type LogsQueryResponse,
   type MachineKey,
   type KeyScope,
   type MeResponse,
@@ -108,19 +106,6 @@ async function request<T>(path: string, { method = 'GET', body, signal }: Reques
   return parsed as T;
 }
 
-export function logsQueryString(query: LogsQuery): string {
-  const params = new URLSearchParams();
-  if (query.level?.length) params.set('level', query.level.join(','));
-  if (query.source) params.set('source', query.source);
-  if (query.agentId) params.set('agentId', query.agentId);
-  if (query.correlationId) params.set('correlationId', query.correlationId);
-  if (query.q) params.set('q', query.q);
-  if (query.from) params.set('from', query.from);
-  if (query.to) params.set('to', query.to);
-  if (query.limit) params.set('limit', String(query.limit));
-  return params.toString();
-}
-
 export const api = {
   me: (signal?: AbortSignal) => request<MeResponse>('/me', { signal }),
   agents: (days: number, signal?: AbortSignal) => request<AgentsResponse>(`/agents?days=${days}`, { signal }),
@@ -130,10 +115,6 @@ export const api = {
   perfSessions: (days: number, signal?: AbortSignal) => request<PerfSessionsResponse>(`/perf/sessions?days=${days}`, { signal }),
   perfSession: (id: string, signal?: AbortSignal) =>
     request<PerfSessionDetailResponse>(`/perf/session?${new URLSearchParams({ id }).toString()}`, { signal }),
-  logs: (query: LogsQuery, signal?: AbortSignal) => {
-    const qs = logsQueryString(query);
-    return request<LogsQueryResponse>(qs ? `/logs?${qs}` : '/logs', { signal });
-  },
   keys: (signal?: AbortSignal) => request<KeysResponse>('/keys', { signal }),
   createKey: (name: string, scope: KeyScope = 'all') => request<CreateKeyResponse>('/keys', { method: 'POST', body: { name, scope } }),
   revokeKey: (id: string) => request<{ key: MachineKey }>('/keys/revoke', { method: 'POST', body: { id } }),

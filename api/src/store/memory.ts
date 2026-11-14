@@ -2,7 +2,7 @@
 // Never used in Azure: see store/index.ts.
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import type { Agent, AgentEvent, AgentKind, AgentMessage, AlertSubscription, Blocker, LogEntry, PerfSample, PerfSession } from '@agent-manager-delux/shared';
+import type { Agent, AgentEvent, AgentKind, AgentMessage, AlertSubscription, Blocker, PerfSample, PerfSession } from '@agent-manager-delux/shared';
 import {
   BLOCKER_RETENTION_SECONDS,
   isReportingEvent,
@@ -11,7 +11,6 @@ import {
   PERF_SESSION_RETENTION_SECONDS,
   REPORTING_RETENTION_DAYS,
   RETENTION_DAYS,
-  type LogFilter,
   type MessageFilter,
   type Store,
   type StoredKey,
@@ -21,7 +20,6 @@ export interface Snapshot {
   keys: StoredKey[];
   agents: Agent[];
   events: AgentEvent[];
-  logs: LogEntry[];
   /** Missing in files saved before alerts existed. */
   alerts?: AlertSubscription[];
   /** Missing in files saved before messages existed. */
@@ -37,7 +35,6 @@ export class MemoryStore implements Store {
   private keys = new Map<string, StoredKey>();
   private agents = new Map<string, Agent>();
   private events: AgentEvent[] = [];
-  private logs: LogEntry[] = [];
   private alerts = new Map<string, AlertSubscription>();
   private messages: AgentMessage[] = [];
   private perfSessions = new Map<string, PerfSession>();
@@ -54,7 +51,6 @@ export class MemoryStore implements Store {
       for (const a of snap.agents) this.agents.set(a.id, a);
       for (const s of snap.alerts ?? []) this.alerts.set(s.id, s);
       this.events = snap.events;
-      this.logs = snap.logs;
       this.messages = snap.messages ?? [];
       for (const p of snap.perfSessions ?? []) this.perfSessions.set(p.id, p);
       for (const p of snap.perfSamples ?? []) this.perfSamples.set(p.id, p);
@@ -67,7 +63,6 @@ export class MemoryStore implements Store {
     const cutoff = new Date(this.now().getTime() - RETENTION_DAYS * 86_400_000).toISOString();
     const reportingCutoff = new Date(this.now().getTime() - REPORTING_RETENTION_DAYS * 86_400_000).toISOString();
     this.events = this.events.filter((e) => e.receivedAt >= (isReportingEvent(e) ? reportingCutoff : cutoff));
-    this.logs = this.logs.filter((l) => l.receivedAt >= cutoff);
     const messageCutoff = new Date(this.now().getTime() - MESSAGE_RETENTION_SECONDS * 1000).toISOString();
     this.messages = this.messages.filter((m) => m.createdAt >= messageCutoff);
     const ago = (seconds: number) => new Date(this.now().getTime() - seconds * 1000).toISOString();
@@ -82,7 +77,6 @@ export class MemoryStore implements Store {
       keys: [...this.keys.values()],
       agents: [...this.agents.values()],
       events: this.events,
-      logs: this.logs,
       alerts: [...this.alerts.values()],
       messages: this.messages,
       perfSessions: [...this.perfSessions.values()],
@@ -136,28 +130,6 @@ export class MemoryStore implements Store {
 
   async listReportingEvents(since: string) {
     return structuredClone(this.events.filter((e) => e.at >= since && isReportingEvent(e)));
-  }
-
-  async addLogs(logs: LogEntry[]) {
-    this.logs.push(...structuredClone(logs));
-    this.prune();
-    this.save();
-  }
-  async queryLogs(f: LogFilter) {
-    const text = f.text?.toLowerCase();
-    const matched = this.logs
-      .filter(
-        (l) =>
-          (f.levels.length === 0 || f.levels.includes(l.level)) &&
-          (!f.source || l.source === f.source) &&
-          (!f.agentId || l.agentId === f.agentId) &&
-          (!f.correlationId || l.correlationId === f.correlationId) &&
-          (!text || l.message.toLowerCase().includes(text)) &&
-          (!f.from || l.at >= f.from) &&
-          (!f.to || l.at <= f.to),
-      )
-      .sort((a, b) => b.at.localeCompare(a.at));
-    return { logs: structuredClone(matched.slice(0, f.limit)), truncated: matched.length > f.limit };
   }
 
   async getAlert(id: string) {

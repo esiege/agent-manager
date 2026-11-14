@@ -47,7 +47,6 @@ var containers = [
   { id: 'keys', partitionKey: '/id', ttl: null }
   { id: 'alerts', partitionKey: '/id', ttl: null }
   { id: 'events', partitionKey: '/agentId', ttl: retentionSeconds }
-  { id: 'logs', partitionKey: '/source', ttl: retentionSeconds }
   { id: 'messages', partitionKey: '/machine', ttl: 86400 }
   { id: 'perfSessions', partitionKey: '/id', ttl: 365 * 24 * 3600 }
   { id: 'perfSamples', partitionKey: '/sessionId', ttl: retentionSeconds }

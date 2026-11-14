@@ -1,14 +1,6 @@
-// How states, kinds and levels are named and colored.
+// How states and kinds are named and colored.
 
-import {
-  AGENT_KINDS,
-  INSTRUCTIONS_VERSION,
-  LOG_LEVELS,
-  type AgentKind,
-  type AgentState,
-  type AgentView,
-  type LogLevel,
-} from '@agent-manager-delux/shared';
+import { AGENT_KINDS, INSTRUCTIONS_VERSION, type AgentKind, type AgentState, type AgentView } from '@agent-manager-delux/shared';
 import type { MantineColor } from '@mantine/core';
 
 /** The order states are listed in filters and on the Overview. */
@@ -52,17 +44,6 @@ export const KIND_LABEL: Record<AgentKind, string> = {
 
 export function kindLabel(kind: string): string {
   return (AGENT_KINDS as readonly string[]).includes(kind) ? KIND_LABEL[kind as AgentKind] : kind;
-}
-
-export const LEVEL_COLOR: Record<LogLevel, MantineColor> = {
-  debug: 'gray',
-  info: 'blue',
-  warn: 'yellow',
-  error: 'red',
-};
-
-export function isLogLevel(value: string): value is LogLevel {
-  return (LOG_LEVELS as readonly string[]).includes(value);
 }
 
 /** Set up from an older version of the instructions page (I-05). */

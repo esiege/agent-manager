@@ -109,13 +109,12 @@ Each persona (for example the community manager for the website, and the one for
 - **kind**: `openclaw`. **machine**: the host you run on. **name**: the persona's display name.
 - **Every 2 minutes**, and whenever your state changes, send a report with `state` and a one-line `activity`. Set `"lostAfterSeconds": 300` so Agent Manager Delux shows you as Lost after 5 minutes of silence.
 - **Every public action** (posted patch notes, answered a comment, ran a survey) is a report with `link` set to what you posted, and `activity` saying what you did.
-- Send errors and anything worth troubleshooting to `/api/v1/logs` with `source` set to your agentId.
 
 See "Any other agent or service" for the exact calls.
 
 ## Any other agent or service
 
-Two calls cover most agents: **report** your state, and send **logs**. Every call is a `POST` with the header `X-Agent-Manager-Key: $AGENT_MANAGER_KEY` (not `Authorization`, which the host replaces) and a JSON body. Answers are JSON. A refused call returns 4xx with `{"error": "<one line saying what to fix>"}`. Add `"test": true` to any call to check it without storing anything.
+One call covers most agents: **report** your state. Every call is a `POST` with the header `X-Agent-Manager-Key: $AGENT_MANAGER_KEY` (not `Authorization`, which the host replaces) and a JSON body. Answers are JSON. A refused call returns 4xx with `{"error": "<one line saying what to fix>"}`. Add `"test": true` to any call to check it without storing anything.
 
 ### Report: `POST $MANAGER_URL/api/v1/report`
 
@@ -176,28 +175,6 @@ report("https://agents.example.net", agentId="openclaw/community-game", kind="op
 ```
 
 The answer includes `agentUrl`, the agent's page in Agent Manager Delux, and `warnings` for anything that was adjusted (for example a field that was too long).
-
-### Logs: `POST $MANAGER_URL/api/v1/logs`
-
-Body: `{"entries": [ ... ]}` with up to 500 entries per call (1 MB at most). Each entry:
-
-| Field | Required | Meaning |
-| --- | --- | --- |
-| `level` | yes | `debug`, `info`, `warn` or `error` (`warning`, `fatal` and similar are mapped). |
-| `source` | yes | What sent it, for example `gma-web` or your `agentId`. |
-| `message` | yes | The log line (up to 8,000 characters). |
-| `at` | no | ISO 8601 time. Defaults to when it arrived. |
-| `agentId` | no | The agent it belongs to, so it shows on that agent's page. |
-| `correlationId` | no | Ties together the lines of one request or job. |
-| `context` | no | Any JSON that helps troubleshooting. Unknown fields are kept here too. |
-
-```bash
-curl -fsS -X POST "$MANAGER_URL/api/v1/logs" \
-  -H "X-Agent-Manager-Key: $AGENT_MANAGER_KEY" -H "Content-Type: application/json" \
-  -d '{"entries":[{"level":"error","source":"gma-web","message":"Encounter generator timed out after 30 s","correlationId":"req-81f2","context":{"route":"/api/encounter"}}]}'
-```
-
-Values that look like keys or tokens are masked when stored, but don't rely on it: never log secrets.
 
 ### Heartbeat for many agents: `POST $MANAGER_URL/api/v1/heartbeat`
 

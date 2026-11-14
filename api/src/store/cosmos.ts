@@ -1,12 +1,12 @@
 // Cosmos DB (NoSQL API, serverless) store used in Azure.
-// Containers: agents (/id), keys (/id), alerts (/id), events (/agentId, 30-day TTL), logs (/source, 30-day TTL),
+// Containers: agents (/id), keys (/id), alerts (/id), events (/agentId, 30-day TTL),
 // messages (/machine, 1-day TTL), perfSessions (/id, 1-year TTL), perfSamples (/sessionId, 30-day TTL),
 // blockers (/id, 90-day TTL from the last change).
 // infra/main.bicep creates the same containers; ensure() creates them too when they're missing.
 
 import { createHash } from 'node:crypto';
 import { CosmosClient, type Container, type SqlParameter } from '@azure/cosmos';
-import type { Agent, AgentEvent, AgentKind, AgentMessage, AlertSubscription, Blocker, LogEntry, PerfSample, PerfSession } from '@agent-manager-delux/shared';
+import type { Agent, AgentEvent, AgentKind, AgentMessage, AlertSubscription, Blocker, PerfSample, PerfSession } from '@agent-manager-delux/shared';
 import {
   BLOCKER_RETENTION_SECONDS,
   isReportingEvent,
@@ -15,7 +15,6 @@ import {
   PERF_SESSION_RETENTION_SECONDS,
   REPORTING_RETENTION_DAYS,
   RETENTION_DAYS,
-  type LogFilter,
   type MessageFilter,
   type Store,
   type StoredKey,
@@ -35,7 +34,6 @@ const CONTAINERS = {
   keys: { partitionKey: '/id' },
   alerts: { partitionKey: '/id' },
   events: { partitionKey: '/agentId', defaultTtl: TTL_SECONDS },
-  logs: { partitionKey: '/source', defaultTtl: TTL_SECONDS },
   messages: { partitionKey: '/machine', defaultTtl: MESSAGE_RETENTION_SECONDS },
   perfSessions: { partitionKey: '/id', defaultTtl: PERF_SESSION_RETENTION_SECONDS },
   perfSamples: { partitionKey: '/sessionId', defaultTtl: PERF_SAMPLE_RETENTION_SECONDS },
@@ -188,45 +186,6 @@ export class CosmosStore implements Store {
       const { ttl: _ttl, ...event } = clean<AgentEvent & { ttl?: number }>(r);
       return event as AgentEvent;
     });
-  }
-
-  async addLogs(logs: LogEntry[]) {
-    const container = await this.c('logs');
-    // Small batches keep a 500-entry call from tripping serverless request-rate limits.
-    for (let i = 0; i < logs.length; i += 50) {
-      await Promise.all(logs.slice(i, i + 50).map((l) => container.items.create(l)));
-    }
-  }
-  async queryLogs(f: LogFilter) {
-    const where: string[] = [];
-    const parameters: SqlParameter[] = [{ name: '@limit', value: f.limit + 1 }];
-    if (f.levels.length) {
-      where.push('ARRAY_CONTAINS(@levels, c.level)');
-      parameters.push({ name: '@levels', value: f.levels });
-    }
-    const eq = (field: 'source' | 'agentId' | 'correlationId', value: string | undefined) => {
-      if (!value) return;
-      where.push(`c.${field} = @${field}`);
-      parameters.push({ name: `@${field}`, value });
-    };
-    eq('source', f.source);
-    eq('agentId', f.agentId);
-    eq('correlationId', f.correlationId);
-    if (f.text) {
-      where.push('CONTAINS(c.message, @text, true)');
-      parameters.push({ name: '@text', value: f.text });
-    }
-    if (f.from) {
-      where.push('c.at >= @from');
-      parameters.push({ name: '@from', value: f.from });
-    }
-    if (f.to) {
-      where.push('c.at <= @to');
-      parameters.push({ name: '@to', value: f.to });
-    }
-    const sql = `SELECT TOP @limit * FROM c${where.length ? ` WHERE ${where.join(' AND ')}` : ''} ORDER BY c.at DESC`;
-    const rows = await this.query<LogEntry>('logs', sql, parameters, f.source || undefined);
-    return { logs: rows.slice(0, f.limit), truncated: rows.length > f.limit };
   }
 
   getAlert(id: string) {
