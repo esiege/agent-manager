@@ -27,7 +27,7 @@ export function OldSetupBadge({ version }: { version: number | null }) {
       maw={320}
     >
       <Badge color="yellow" variant="outline" radius="sm" size="sm" tt="none" style={{ flexShrink: 0 }}>
-        old setup
+        version mismatch
       </Badge>
     </Tooltip>
   );

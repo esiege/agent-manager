@@ -183,7 +183,7 @@ export function InstructionsPage() {
         <aside className="am-side">
           <SideItem
             title="Already set up?"
-            description="Update a PC whose agents are marked “old setup” by sending its agent the update sentence."
+            description="Update a PC whose agents are marked “version mismatch” by sending its agent the update sentence."
             sentence={updateSentence}
             copyLabel="Copy update sentence"
             meta={`Latest: version ${INSTRUCTIONS_VERSION}, ${INSTRUCTIONS_UPDATED}`}
