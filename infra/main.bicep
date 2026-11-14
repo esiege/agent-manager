@@ -1,5 +1,6 @@
-// Agent Manager in Azure: a Static Web App (React UI + managed Functions API),
-// Cosmos DB serverless for storage, and Application Insights for the app's own telemetry.
+// Agent Manager Deluxe in Azure: a Static Web App (React UI + managed Functions API),
+// Cosmos DB serverless for storage, a storage account for blocker screenshots and videos,
+// and Application Insights for the app's own telemetry.
 // Deploy with scripts/deploy.ps1, which also builds and uploads the app.
 
 @description('Name prefix for every resource.')
@@ -50,6 +51,7 @@ var containers = [
   { id: 'messages', partitionKey: '/machine', ttl: 86400 }
   { id: 'perfSessions', partitionKey: '/id', ttl: 365 * 24 * 3600 }
   { id: 'perfSamples', partitionKey: '/sessionId', ttl: retentionSeconds }
+  { id: 'blockers', partitionKey: '/id', ttl: 90 * 24 * 3600 }
 ]
 
 resource containerResources 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = [
@@ -64,6 +66,53 @@ resource containerResources 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/
     }
   }
 ]
+
+// Blocker screenshots and videos: too big for Cosmos documents. Private; the API reads them
+// with the account key and serves them to the signed-in owner.
+resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: take('${replace(name, '-', '')}${suffix}', 24)
+  location: location
+  kind: 'StorageV2'
+  sku: { name: 'Standard_LRS' }
+  properties: {
+    accessTier: 'Hot'
+    allowBlobPublicAccess: false
+    minimumTlsVersion: 'TLS1_2'
+    supportsHttpsTrafficOnly: true
+  }
+}
+
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
+  parent: storage
+  name: 'default'
+}
+
+resource mediaContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'blocker-media'
+  properties: { publicAccess: 'None' }
+}
+
+// Blockers are kept 90 days after their last change (the Cosmos TTL); their files go too.
+resource mediaLifecycle 'Microsoft.Storage/storageAccounts/managementPolicies@2023-05-01' = {
+  parent: storage
+  name: 'default'
+  properties: {
+    policy: {
+      rules: [
+        {
+          name: 'delete-old-blocker-media'
+          enabled: true
+          type: 'Lifecycle'
+          definition: {
+            filters: { blobTypes: ['blockBlob'], prefixMatch: ['blocker-media/'] }
+            actions: { baseBlob: { delete: { daysAfterModificationGreaterThan: 90 } } }
+          }
+        }
+      ]
+    }
+  }
+}
 
 resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: '${name}-logs-${suffix}'
@@ -98,6 +147,9 @@ resource siteSettings 'Microsoft.Web/staticSites/config@2023-12-01' = {
     COSMOS_ENDPOINT: cosmos.properties.documentEndpoint
     COSMOS_KEY: cosmos.listKeys().primaryMasterKey
     COSMOS_DATABASE: 'agentmanager'
+    BLOB_ACCOUNT: storage.name
+    BLOB_KEY: storage.listKeys().keys[0].value
+    BLOB_CONTAINER: mediaContainer.name
     OWNER_LOGINS: ownerLogins
     PUBLIC_URL: 'https://${site.properties.defaultHostname}'
     APPLICATIONINSIGHTS_CONNECTION_STRING: insights.properties.ConnectionString
@@ -107,3 +159,4 @@ resource siteSettings 'Microsoft.Web/staticSites/config@2023-12-01' = {
 output siteName string = site.name
 output siteUrl string = 'https://${site.properties.defaultHostname}'
 output cosmosAccount string = cosmos.name
+output storageAccount string = storage.name
