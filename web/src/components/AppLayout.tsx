@@ -20,6 +20,7 @@ import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router';
 import { api, LOGOUT_URL } from '../lib/api';
 import { useMe } from './AuthGate';
+import { Logo } from './Logo';
 
 const TABS = [
   { to: '/', label: 'Overview' },
@@ -87,12 +88,12 @@ export function AppLayout() {
   const openBlockers = useOpenBlockers(pathname);
 
   return (
-    <AppShell header={{ height: 96 }} padding={{ base: 'sm', sm: 'md' }}>
+    <AppShell header={{ height: 124 }} padding={{ base: 'sm', sm: 'md' }}>
       <AppShell.Header withBorder={false}>
         <Box h="100%" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-          <Group h={54} px={{ base: 'sm', sm: 'md' }} justify="space-between" wrap="nowrap" gap="sm">
-            <Anchor component={Link} to="/" underline="never" c="inherit" fw={700} fz="lg" style={{ whiteSpace: 'nowrap' }}>
-              Agent Manager Deluxe
+          <Group h={82} px={{ base: 'sm', sm: 'md' }} justify="space-between" wrap="nowrap" gap="sm">
+            <Anchor component={Link} to="/" underline="never" c="inherit" aria-label="Agent Manager Deluxe" style={{ flexShrink: 0 }}>
+              <Logo height={72} />
             </Anchor>
             <Group gap="xs" wrap="nowrap" miw={0}>
               <Text size="sm" c="dimmed" truncate="end" maw={240} visibleFrom="sm" title={`Signed in as ${me.login}`}>

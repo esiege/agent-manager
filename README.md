@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="web/src/assets/logo.svg" alt="Agent Manager Deluxe" width="440">
+</p>
+
 # Agent Manager Deluxe
 
 A self-hosted dashboard for the AI agents you run. See which Claude Code sessions on your PCs are working, which are waiting on you, and what each one finished and wants you to check.
