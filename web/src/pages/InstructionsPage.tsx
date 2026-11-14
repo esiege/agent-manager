@@ -141,10 +141,10 @@ export function InstructionsPage() {
   // Hidden until asked for. A link to a heading in the instructions opens them.
   const [showFull, setShowFull] = useState(() => window.location.hash.length > 1);
   const instructionsUrl = `${window.location.origin}${INSTRUCTIONS_PATH}`;
-  const sentence = `Read ${instructionsUrl} and set yourself up to report to Agent Manager Delux. If this PC has no machine key yet, explain how to set one up.`;
+  const sentence = `Read ${instructionsUrl} and set yourself up to report to Agent Manager Delux.`;
   const updateSentence = `Read ${window.location.origin}${UPDATE_PATH} (updated ${INSTRUCTIONS_UPDATED}) and update this PC's Agent Manager Delux reporting if it isn't on the latest.`;
 
-  const performanceSentence = `Read ${window.location.origin}${PERFORMANCE_PATH} and add performance reporting to this game, so its sessions show up in Agent Manager Delux. Explain how to get a game key.`;
+  const performanceSentence = `Read ${window.location.origin}${PERFORMANCE_PATH} and add performance reporting to this game, so its sessions show up in Agent Manager Delux.`;
 
   return (
     <>
