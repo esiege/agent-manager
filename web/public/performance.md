@@ -3,9 +3,20 @@
 You are adding performance reporting to a game or app, so its frame rate, frame times and memory show up on the **Game** tab of Agent Manager Delux for every machine it runs on. This page tells you what to send. It is plain HTTPS and JSON, so it works from any engine.
 
 - **`$MANAGER_URL`** below means the address you fetched this page from, without `/performance.md`.
-- **The key** goes in the `X-Agent-Manager-Key` header of every call (not `Authorization`, which the host replaces). Use a **game key**: the person makes one on the **Settings** tab, choosing "A game (performance data only)". A game key can only make the two calls on this page, so it is safe to put in a build that goes to other people's machines. Never put a machine key (the one in `AGENT_MANAGER_KEY`) in a build. Keep the game key out of a public repository all the same: load it from a build setting or a file that isn't committed.
+- **The key** goes in the `X-Agent-Manager-Key` header of every call (not `Authorization`, which the host replaces). Use a **game key**: see "If there's no game key" below. A game key can only make the two calls on this page, so it is safe to put in a build that goes to other people's machines. Never put a machine key (the one in `AGENT_MANAGER_KEY`) in a build. Keep the game key out of a public repository all the same: load it from a build setting or a file that isn't committed.
 - Every call is a `POST` with a JSON body, and answers JSON. A refused call returns 4xx with `{"error": "<one line saying what to fix>"}`. Add `"test": true` to check a call without storing anything.
 - Send nothing personal: no player names, account ids, IP addresses or file paths. A machine name is enough to tell machines apart; for players' machines, use a random id the game makes once and keeps.
+
+## If there's no game key
+
+Each game has its own key, which the person makes and saves themselves. Pick where the game will load it from: a build setting, an environment variable, or a file that isn't committed (add it to `.gitignore`). Check whether it's already there, without printing it. If it isn't, stop and give the person these steps, with the address and the place filled in:
+
+1. Open `$MANAGER_URL/settings` and sign in.
+2. Under **New key**, set **For** to **A game (performance data only)**, type the game's name and choose **Create key**.
+3. The key is shown once. Copy it and save it in `<the place you picked>` yourself. Don't paste the key into this chat.
+4. Tell me when that's done.
+
+Then carry on, and check each call with `"test": true` before the game sends real data.
 
 ## How it fits together
 
